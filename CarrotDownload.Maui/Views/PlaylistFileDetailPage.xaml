@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Views.PlaylistFileDetailPage"
+             BackgroundColor="White"
+             Shell.NavBarIsVisible="False">
+    
+    <Grid RowDefinitions="Auto,*">
+        <controls:NavigationBar Grid.Row="0" />
+        
+        <Grid Grid.Row="1" ColumnDefinitions="1*,8*,1*">
+        <ScrollView Grid.Column="1" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <!-- Back Button -->
+            <Button Text="Back"
+                    BackgroundColor="#007bff"
+                    TextColor="White"
+                    FontSize="14"
+                    FontAttributes="Bold"
+                    CornerRadius="4"
+                    WidthRequest="80"
+                    HeightRequest="36"
+                    HorizontalOptions="Start"
+                    Clicked="OnBackClicked"/>
+            
+            <!-- File Title -->
+            <Label x:Name="FileTitleLabel"
+                   Text="Yoonadee - Google Chrome 2025-11-26 19-54-57.mp4"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="#333"
+                   HorizontalOptions="Center"/>
+            
+            <!-- Video Player -->
+            <Grid WidthRequest="640" HeightRequest="360" HorizontalOptions="Center">
+                <Border BackgroundColor="#1a1a1a"
+                        StrokeShape="RoundRectangle 8"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="Fill">
+                    <Grid>
+                        <!-- Generated Thumbnail -->
+                        <Image x:Name="FileThumbnailImage"
+                               Aspect="AspectFill"
+                               Opacity="1"/>
+
+                        <Label Text="▶"
+                               FontSize="60"
+                               TextColor="White"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               Opacity="0.7"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Transparent Overlay Button for Click Handling -->
+                <Button BackgroundColor="Transparent"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="Fill"
+                        Clicked="OnPlayVideoClicked"/>
+            </Grid>
+            
+            <!-- Notes Button -->
+            <Button Text="Notes ▶"
+                    BackgroundColor="#007bff"
+                    TextColor="White"
+                    FontSize="14"
+                    FontAttributes="Bold"
+                    CornerRadius="4"
+                    WidthRequest="100"
+                    HeightRequest="36"
+                    HorizontalOptions="Center"
+                    Clicked="OnNotesClicked"/>
+            
+            <!-- Metadata -->
+            <VerticalStackLayout Spacing="10">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Created At:"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="#333"
+                           WidthRequest="150"/>
+                    <Label x:Name="CreatedAtLabel"
+                           Text="16/12/2025, 18:25:41"
+                           FontSize="14"
+                           TextColor="#666"/>
+                </HorizontalStackLayout>
+                
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Sequence Position:"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="#333"
+                           WidthRequest="150"/>
+                    <Label x:Name="SequencePositionLabel"
+                           Text="1"
+                           FontSize="14"
+                           TextColor="#666"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+            
+            <!-- Slot Position -->
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="Slot Position:"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#333"
+                       WidthRequest="150"
+                       VerticalOptions="Center"/>
+                <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="8,0" Margin="1">
+                    <controls:BorderlessEntry x:Name="SlotPositionEntry"
+                           Text=""
+                           FontSize="14"
+                           WidthRequest="100"
+                           HeightRequest="40"
+                           BackgroundColor="Transparent"/>
+                </Border>
+            </HorizontalStackLayout>
+            
+            <!-- Action Buttons -->
+            <HorizontalStackLayout Spacing="15" HorizontalOptions="Start">
+                <Button Text="Save Slot Position"
+                        BackgroundColor="#6c757d"
+                        TextColor="White"
+                        FontSize="14"
+                        FontAttributes="Bold"
+                        CornerRadius="4"
+                        Padding="15,10"
+                        Clicked="OnSaveSlotClicked"/>
+                
+                <Button Text="Download File"
+                        BackgroundColor="#007bff"
+                        TextColor="White"
+                        FontSize="14"
+                        FontAttributes="Bold"
+                        CornerRadius="4"
+                        Padding="15,10"
+                        Clicked="OnDownloadFileClicked"/>
+                
+                <Button Text="Delete File"
+                        BackgroundColor="#007bff"
+                        TextColor="White"
+                        FontSize="14"
+                        FontAttributes="Bold"
+                        CornerRadius="4"
+                        Padding="15,10"
+                        Clicked="OnDeleteFileClicked"/>
+            </HorizontalStackLayout>
+            
+        </VerticalStackLayout>
+        </ScrollView>
+        </Grid>
+    </Grid>
+</ContentPage>

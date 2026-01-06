@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarrotDownload.Maui.Views.JobHistoryPage"
+             BackgroundColor="White"
+             Title="Job History">
+
+    <Grid RowDefinitions="Auto,*" Padding="0">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                BackgroundColor="White"
+                Padding="20,15"
+                Stroke="#e5e5e5"
+                StrokeThickness="1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Label Grid.Column="0"
+                       Text="← Back"
+                       FontSize="14"
+                       TextColor="#ff5722"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+                
+                <Label Grid.Column="1"
+                       Text="Job Queue"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       TextColor="#333333"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+
+                <Button Grid.Column="2"
+                        Text="Refresh"
+                        FontSize="12"
+                        HeightRequest="30"
+                        Padding="10,0"
+                        BackgroundColor="Transparent"
+                        TextColor="#2196F3"
+                        Clicked="OnRefreshClicked"/>
+            </Grid>
+        </Border>
+
+        <!-- Job List -->
+        <Grid Grid.Row="1" ColumnDefinitions="0.5*,11*,0.5*">
+        <CollectionView Grid.Column="1" 
+                        x:Name="JobsCollection"
+                        SelectionMode="None"
+                        Margin="20"
+                        VerticalScrollBarVisibility="Never"
+                        HorizontalScrollBarVisibility="Never">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Spacing="10" VerticalOptions="Center" HorizontalOptions="Center">
+                    <Label Text="📭" FontSize="40" HorizontalOptions="Center"/>
+                    <Label Text="No jobs in queue" TextColor="#999999" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+            
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border BackgroundColor="White"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="#e5e5e5"
+                            StrokeThickness="1"
+                            Padding="15"
+                            Margin="0,0,0,10">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                            
+                            <!-- Job Type & Status -->
+                            <HorizontalStackLayout Grid.Row="0" Grid.Column="0" Spacing="8">
+                                <Label Text="{Binding JobType}" 
+                                       FontAttributes="Bold" 
+                                       TextColor="#333333"/>
+                                <Label Text="•" TextColor="#cccccc"/>
+                                <Label Text="{Binding Status}" 
+                                       TextColor="{Binding StatusColor}"
+                                       FontAttributes="Bold"/>
+                            </HorizontalStackLayout>
+
+                            <!-- File Name -->
+                            <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Text="{Binding SourceFileName}"
+                                   FontSize="13"
+                                   TextColor="#666666"
+                                   LineBreakMode="TailTruncation"
+                                   Margin="0,5"/>
+
+                            <!-- Progress Bar -->
+                            <ProgressBar Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                         Progress="{Binding ProgressPercent}"
+                                         ProgressColor="{Binding StatusColor}"
+                                         HeightRequest="6"
+                                         IsVisible="{Binding IsRunning}"/>
+                            
+                            <!-- Error Message (if failed) -->
+                            <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Text="{Binding Error}"
+                                   TextColor="Red"
+                                   FontSize="11"
+                                   IsVisible="{Binding HasError}"/>
+
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        </Grid>
+    </Grid>
+</ContentPage>

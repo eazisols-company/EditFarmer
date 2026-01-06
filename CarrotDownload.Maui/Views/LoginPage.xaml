@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarrotDownload.Maui.Views.LoginPage"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             BackgroundColor="White"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <Border Grid.Row="0"
+                BackgroundColor="White"
+                Padding="20,12"
+                Stroke="#e5e5e5"
+                StrokeThickness="1"
+                ZIndex="10">
+            <Grid>
+                <!-- Logo mimicking NavigationBar -->
+                <Image Source="editfarmer_logo.png"
+                       HeightRequest="40"
+                       WidthRequest="120"
+                       Aspect="AspectFit"
+                       HorizontalOptions="End"/>
+            </Grid>
+        </Border>
+
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="0" 
+                                 VerticalOptions="Center" 
+                                 HorizontalOptions="Center"
+                                 Padding="20">
+
+                <!-- Card Container -->
+                <Border BackgroundColor="White"
+                        StrokeShape="RoundRectangle 6"
+                        Stroke="#e5e5e5"
+                        StrokeThickness="1"
+                        Padding="30"
+                        WidthRequest="450"
+                        HeightRequest="500"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                    
+                    <VerticalStackLayout Spacing="9">
+                        
+                        <!-- Logo -->
+                        <Image Source="editfarmer_logo.png"
+                               HeightRequest="70"
+                               Aspect="AspectFit"
+                               HorizontalOptions="Center"
+                               Margin="0,0,0,5"/>
+
+                        <!-- Title -->
+                        <Label Text="Sign in"
+                               TextColor="#ff5722"
+                               FontSize="24"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center"
+                               Margin="0,0,0,8"/>
+
+                        <!-- Message Label -->
+                        <Label x:Name="MessageLabel"
+                               IsVisible="False"
+                               FontSize="12"
+                               HorizontalTextAlignment="Center"
+                               Padding="10,8"
+                               Margin="0,0,0,5"/>
+
+                        <!-- Email Field -->
+                        <Label Text="Email" TextColor="#666" FontSize="12" Margin="0,0,0,3"/>
+                        <Border BackgroundColor="White" 
+                                Stroke="#cccccc"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 4"
+                                HeightRequest="38"
+                                Padding="5,0"
+                                Margin="1">
+                            <controls:BorderlessEntry x:Name="EmailEntry"
+                                   Placeholder="your.email@example.com"
+                                   PlaceholderColor="#999999"
+                                   TextColor="#333333"
+                                   Keyboard="Email"
+                                   BackgroundColor="Transparent"
+                                   VerticalOptions="Center"
+                                   FontSize="13" />
+                        </Border>
+
+                        <!-- Password Field with Eye Icon -->
+                        <Label Text="Password" TextColor="#666" FontSize="12" Margin="0,0,0,3"/>
+                        <Border BackgroundColor="White" 
+                                Stroke="#cccccc"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 4"
+                                HeightRequest="38"
+                                Padding="0"
+                                Margin="1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <controls:BorderlessEntry x:Name="PasswordEntry"
+                                       Grid.Column="0"
+                                       Placeholder="Enter password"
+                                       PlaceholderColor="#999999"
+                                       TextColor="#333333"
+                                       IsPassword="True"
+                                       BackgroundColor="Transparent"
+                                       VerticalOptions="Center"
+                                       FontSize="13" 
+                                       Margin="5,0,0,0"/>
+                                <Label x:Name="PasswordToggle"
+                                       Grid.Column="1"
+                                       Text="👁"
+                                       FontSize="16"
+                                       TextColor="#666"
+                                       VerticalOptions="Center"
+                                       HorizontalOptions="Center"
+                                       Padding="10,0"
+                                       VerticalTextAlignment="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPasswordToggleTapped" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </Grid>
+                        </Border>
+
+                        <!-- Login Button -->
+                        <Button x:Name="LoginButton"
+                                Text="Sign In"
+                                BackgroundColor="#ff5722"
+                                TextColor="White"
+                                BorderColor="#e0e0e0"
+                                BorderWidth="1"
+                                FontSize="14"
+                                FontAttributes="Bold"
+                                CornerRadius="4"
+                                HeightRequest="42"
+                                Margin="0,10,0,0"
+                                Clicked="OnLoginClicked"/>
+
+
+
+                        <!-- Admin Login Button -->
+                        <Button x:Name="AdminLoginButton"
+                                Text="🔐 Admin Login"
+                                BackgroundColor="#1a1a1a"
+                                TextColor="White"
+                                BorderColor="#333333"
+                                BorderWidth="1"
+                                FontSize="14"
+                                FontAttributes="Bold"
+                                CornerRadius="4"
+                                HeightRequest="42"
+                                Margin="0,15,0,0"
+                                Clicked="OnAdminLoginClicked"/>
+
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Toast Notifications -->
+        <controls:NotificationOverlay Grid.RowSpan="2" />
+
+        <!-- Non-Windows Overlay -->
+        <Grid x:Name="MacOverlay" 
+              Grid.RowSpan="2"
+              BackgroundColor="White" 
+              IsVisible="False"
+              ZIndex="999">
+            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="20">
+                <Image Source="editfarmer_icon.png"
+                       HeightRequest="100"
+                       Aspect="AspectFit"
+                       HorizontalOptions="Center"/>
+                <Label Text="Coming Soon to macOS"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#333"
+                       HorizontalOptions="Center"/>
+                <Label Text="The macOS build for this app is currently in processing."
+                       FontSize="16"
+                       TextColor="#666"
+                       HorizontalOptions="Center"
+                       HorizontalTextAlignment="Center"/>
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

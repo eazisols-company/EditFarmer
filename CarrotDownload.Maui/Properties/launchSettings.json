@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Windows Machine": {
+      "commandName": "MsixPackage",
+      "nativeDebugging": true
+    },
+    "CarrotDownload.Maui": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarrotDownload.Maui.Views.MediaProcessingPage"
+             BackgroundColor="White"
+             Title="Media Processing">
+
+    <Grid RowDefinitions="Auto,*" Padding="0">
+        
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                BackgroundColor="White"
+                Padding="20,15"
+                Stroke="#e5e5e5"
+                StrokeThickness="1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Label Grid.Column="0"
+                       Text="← Back"
+                       FontSize="14"
+                       TextColor="#ff5722"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+                
+                <Label Grid.Column="1"
+                       Text="Process Media File"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       TextColor="#333333"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1" ColumnDefinitions="0.5*,11*,0.5*">
+        <ScrollView Grid.Column="1" Padding="20" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="20">
+
+                <!-- File Selection Card -->
+                <Border x:Name="FileSelectionBorder"
+                        BackgroundColor="White"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="#e5e5e5"
+                        StrokeThickness="2"
+                        StrokeDashArray="5,5"
+                        Padding="25">
+                    <Border.GestureRecognizers>
+                        <DropGestureRecognizer AllowDrop="True"
+                                               DragOver="OnDragOver"
+                                               DragLeave="OnDragLeave"
+                                               Drop="OnDrop"/>
+                    </Border.GestureRecognizers>
+                    
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="1. Select Input File"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#333333"/>
+
+                        <Label Text="Drag and drop your file here"
+                               FontSize="14"
+                               TextColor="#999999"
+                               HorizontalOptions="Center"/>
+                        
+                        <Label Text="- OR -"
+                               FontSize="12"
+                               TextColor="#cccccc"
+                               HorizontalOptions="Center"/>
+
+                        <Button Text="📁 Choose File"
+                                BackgroundColor="#2196F3"
+                                TextColor="White"
+                                CornerRadius="6"
+                                HeightRequest="44"
+                                Clicked="OnSelectFileClicked"/>
+
+                        <VerticalStackLayout x:Name="FileInfoPanel" 
+                                             Spacing="8"
+                                             IsVisible="False">
+                            <Label Text="Selected File:"
+                                   FontSize="12"
+                                   TextColor="#666666"/>
+                            
+                            <!-- Thumbnail Preview -->
+                            <Border WidthRequest="160" 
+                                    HeightRequest="90" 
+                                    StrokeShape="RoundRectangle 6" 
+                                    HorizontalOptions="Center"
+                                    BackgroundColor="#f5f5f5">
+                                <Image x:Name="FileThumbnailImage" Aspect="AspectFill"/>
+                            </Border>
+
+                            <Label x:Name="FileNameLabel"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#333333"
+                                   HorizontalOptions="Center"/>
+                            <Label x:Name="FileSizeLabel"
+                                   FontSize="12"
+                                   TextColor="#999999"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Operation Selection Card -->
+                <Border BackgroundColor="White"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="#e5e5e5"
+                        StrokeThickness="1"
+                        Padding="25">
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="2. Select Operation"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#333333"/>
+
+                        <Picker x:Name="OperationPicker"
+                                Title="Choose an operation"
+                                FontSize="14"
+                                SelectedIndexChanged="OnOperationChanged">
+                            <Picker.Items>
+                                <x:String>Convert Video Format</x:String>
+                                <x:String>Extract Audio</x:String>
+                                <x:String>Compress Video</x:String>
+                            </Picker.Items>
+                        </Picker>
+
+                        <!-- Format Selection (for conversion) -->
+                        <VerticalStackLayout x:Name="FormatPanel" 
+                                             Spacing="8"
+                                             IsVisible="False">
+                            <Label Text="Output Format:"
+                                   FontSize="13"
+                                   TextColor="#666666"/>
+                            <Picker x:Name="FormatPicker"
+                                    FontSize="14">
+                                <Picker.Items>
+                                    <x:String>MP4</x:String>
+                                    <x:String>AVI</x:String>
+                                    <x:String>MKV</x:String>
+                                    <x:String>MOV</x:String>
+                                    <x:String>WMV</x:String>
+                                </Picker.Items>
+                            </Picker>
+                        </VerticalStackLayout>
+
+                        <!-- Audio Format Selection (for audio extraction) -->
+                        <VerticalStackLayout x:Name="AudioFormatPanel" 
+                                             Spacing="8"
+                                             IsVisible="False">
+                            <Label Text="Audio Format:"
+                                   FontSize="13"
+                                   TextColor="#666666"/>
+                            <Picker x:Name="AudioFormatPicker"
+                                    FontSize="14">
+                                <Picker.Items>
+                                    <x:String>MP3</x:String>
+                                    <x:String>AAC</x:String>
+                                    <x:String>WAV</x:String>
+                                    <x:String>FLAC</x:String>
+                                </Picker.Items>
+                            </Picker>
+                        </VerticalStackLayout>
+
+                        <!-- Quality Selection (for compression) -->
+                        <VerticalStackLayout x:Name="QualityPanel" 
+                                             Spacing="8"
+                                             IsVisible="False">
+                            <Label Text="Quality (Lower = Better):"
+                                   FontSize="13"
+                                   TextColor="#666666"/>
+                            <Slider x:Name="QualitySlider"
+                                    Minimum="18"
+                                    Maximum="28"
+                                    Value="23"
+                                    ValueChanged="OnQualityChanged"/>
+                            <Label x:Name="QualityLabel"
+                                   Text="Quality: 23 (Recommended)"
+                                   FontSize="12"
+                                   TextColor="#999999"
+                                   HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Output Location Card -->
+                <Border BackgroundColor="White"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="#e5e5e5"
+                        StrokeThickness="1"
+                        Padding="25">
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="3. Output Location"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#333333"/>
+
+                        <Button Text="📂 Choose Output Folder"
+                                BackgroundColor="White"
+                                TextColor="#2196F3"
+                                BorderColor="#2196F3"
+                                BorderWidth="1"
+                                CornerRadius="6"
+                                HeightRequest="44"
+                                Clicked="OnSelectOutputFolderClicked"/>
+
+                        <Label x:Name="OutputFolderLabel"
+                               Text="Default: Same as input file"
+                               FontSize="12"
+                               TextColor="#999999"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Progress Card -->
+                <Border x:Name="ProgressPanel"
+                        BackgroundColor="White"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="#e5e5e5"
+                        StrokeThickness="1"
+                        Padding="25"
+                        IsVisible="False">
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="Processing..."
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#333333"
+                               HorizontalOptions="Center"/>
+
+                        <ProgressBar x:Name="ProcessingProgressBar"
+                                     Progress="0"
+                                     ProgressColor="#ff5722"
+                                     HeightRequest="8"/>
+
+                        <Label x:Name="ProgressLabel"
+                               Text="0%"
+                               FontSize="14"
+                               TextColor="#666666"
+                               HorizontalOptions="Center"/>
+
+                        <Button Text="Cancel"
+                                BackgroundColor="White"
+                                TextColor="#ff5722"
+                                BorderColor="#ff5722"
+                                BorderWidth="1"
+                                CornerRadius="6"
+                                HeightRequest="36"
+                                WidthRequest="100"
+                                HorizontalOptions="Center"
+                                Clicked="OnCancelClicked"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Start Button -->
+                <Button x:Name="StartButton"
+                        Text="🚀 Start Processing"
+                        BackgroundColor="#ff5722"
+                        TextColor="White"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        CornerRadius="8"
+                        HeightRequest="50"
+                        Clicked="OnStartProcessingClicked"
+                        IsEnabled="False"
+                        Margin="0,10,0,20"/>
+
+            </VerticalStackLayout>
+        </ScrollView>
+        </Grid>
+    </Grid>
+</ContentPage>

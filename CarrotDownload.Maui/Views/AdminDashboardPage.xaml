@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Views.AdminDashboardPage"
+             Title="Admin Dashboard"
+             BackgroundColor="White"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Admin Navigation Bar -->
+        <controls:AdminNavigationBar x:Name="AdminNavBar" Grid.Row="0"/>
+
+        <!-- Content -->
+        <ScrollView Grid.Row="1" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <Grid ColumnDefinitions="0.5*,11*,0.5*">
+            <VerticalStackLayout Grid.Column="1" Padding="30,15,30,30" Spacing="25">
+                
+                <!-- Header -->
+                <Label Text="📊 Dashboard Overview"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#ff5722"
+                       HorizontalOptions="Center"
+                       Margin="0,0,0,5"/>
+
+                <!-- Statistics Cards -->
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="20" RowSpacing="20">
+                    
+                    <!-- Users Card -->
+                    <Border Grid.Row="0" Grid.Column="0" 
+                            BackgroundColor="White" 
+                            Stroke="#e5e5e5" 
+                            StrokeShape="RoundRectangle 8"
+                            StrokeThickness="1"
+                            Padding="25">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="👥" FontSize="40" HorizontalOptions="Center"/>
+                            <Label Text="Total Users" FontSize="16" TextColor="#666" HorizontalOptions="Center"/>
+                            <Label x:Name="UsersCountLabel" Text="0" FontSize="36" FontAttributes="Bold" TextColor="#ff5722" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Projects Card -->
+                    <Border Grid.Row="0" Grid.Column="1" 
+                            BackgroundColor="White" 
+                            Stroke="#e5e5e5" 
+                            StrokeShape="RoundRectangle 8"
+                            StrokeThickness="1"
+                            Padding="25">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="📁" FontSize="40" HorizontalOptions="Center"/>
+                            <Label Text="Total Projects" FontSize="16" TextColor="#666" HorizontalOptions="Center"/>
+                            <Label x:Name="ProjectsCountLabel" Text="0" FontSize="36" FontAttributes="Bold" TextColor="#ff5722" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Programming Files Card -->
+                    <Border Grid.Row="1" Grid.Column="0" 
+                            BackgroundColor="White" 
+                            Stroke="#e5e5e5" 
+                            StrokeShape="RoundRectangle 8"
+                            StrokeThickness="1"
+                            Padding="25">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="📄" FontSize="40" HorizontalOptions="Center"/>
+                            <Label Text="Programming Files" FontSize="16" TextColor="#666" HorizontalOptions="Center"/>
+                            <Label x:Name="FilesCountLabel" Text="0" FontSize="36" FontAttributes="Bold" TextColor="#ff5722" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Playlists Card -->
+                    <Border Grid.Row="1" Grid.Column="1" 
+                            BackgroundColor="White" 
+                            Stroke="#e5e5e5" 
+                            StrokeShape="RoundRectangle 8"
+                            StrokeThickness="1"
+                            Padding="25">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="🎵" FontSize="40" HorizontalOptions="Center"/>
+                            <Label Text="Total Playlist Files" FontSize="16" TextColor="#666" HorizontalOptions="Center"/>
+                            <Label x:Name="PlaylistsCountLabel" Text="0" FontSize="36" FontAttributes="Bold" TextColor="#ff5722" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- Refresh Button -->
+                <Button x:Name="RefreshButton"
+                        Text="🔄 Refresh Statistics"
+                        BackgroundColor="White"
+                        TextColor="#ff5722"
+                        BorderColor="#e5e5e5"
+                        BorderWidth="1"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        CornerRadius="6"
+                        HeightRequest="50"
+                        Margin="0,10,0,0"
+                        Clicked="OnRefreshClicked"/>
+
+            </VerticalStackLayout>
+            </Grid>
+        </ScrollView>
+    </Grid>
+</ContentPage>

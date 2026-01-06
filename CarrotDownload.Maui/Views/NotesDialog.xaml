@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarrotDownload.Maui.Views.NotesDialog"
+             BackgroundColor="#80000000">
+    
+    <Grid BackgroundColor="#80000000">
+        
+        <!-- Dialog Card -->
+        <Border BackgroundColor="White"
+                StrokeShape="RoundRectangle 12"
+                Stroke="#e0e0e0"
+                StrokeThickness="1"
+                Padding="30"
+                WidthRequest="500"
+                VerticalOptions="Center"
+                HorizontalOptions="Center">
+            <VerticalStackLayout Spacing="20">
+                
+                <!-- Header -->
+                <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <Label Text="Notes"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="#007bff"
+                           VerticalOptions="Center"/>
+                    <Label Text="▼"
+                           FontSize="14"
+                           TextColor="#007bff"
+                           VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+                
+                <!-- No Notes Message -->
+                <Label x:Name="NoNotesLabel"
+                       Text="No notes available for this file."
+                       FontSize="14"
+                       TextColor="#666"
+                       HorizontalOptions="Center"
+                       IsVisible="True"/>
+                
+                <!-- Existing Notes List -->
+                <CollectionView x:Name="NotesCollectionView"
+                              ItemsSource="{Binding Notes}"
+                              IsVisible="False">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border BackgroundColor="#f0f0f0"
+                                   StrokeShape="RoundRectangle 4"
+                                   Padding="10"
+                                   Margin="0,5">
+                                <Label Text="{Binding Text}"
+                                       FontSize="13"
+                                       TextColor="#333"/>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                
+                <!-- Add Note Section -->
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Add a Note:"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="#333"/>
+                    
+                    <Editor x:Name="NoteEditor"
+                            Placeholder="Add a note (max 180 characters)"
+                            FontSize="13"
+                            HeightRequest="100"
+                            MaxLength="180"
+                            BackgroundColor="White"
+                            TextColor="#333"/>
+                    
+                    <Button Text="Add Note"
+                            BackgroundColor="#007bff"
+                            TextColor="White"
+                            FontSize="14"
+                            FontAttributes="Bold"
+                            CornerRadius="4"
+                            WidthRequest="120"
+                            HeightRequest="40"
+                            HorizontalOptions="Start"
+                            Clicked="OnAddNoteClicked"/>
+                </VerticalStackLayout>
+                
+                <!-- Close Button -->
+                <Button Text="Close"
+                        BackgroundColor="#6c757d"
+                        TextColor="White"
+                        FontSize="14"
+                        FontAttributes="Bold"
+                        CornerRadius="4"
+                        WidthRequest="100"
+                        HeightRequest="40"
+                        HorizontalOptions="Center"
+                        Clicked="OnCloseClicked"/>
+                
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Views.DownloadsPage"
+             Title="Downloads"
+             BackgroundColor="White">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Navigation Bar -->
+        <controls:NavigationBar Grid.Row="0" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="0.5*,11*,0.5*">
+        <ScrollView Grid.Column="1" Padding="20" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="20">
+                <!-- Back Button -->
+                <Button Text="← Back to Dashboard"
+                        BackgroundColor="#FF6600"
+                        TextColor="White"
+                        FontSize="14"
+                        CornerRadius="4"
+                        HeightRequest="36"
+                        WidthRequest="180"
+                        HorizontalOptions="Start"
+                        Clicked="OnBackClicked"/>
+                <!-- Page Title -->
+                <Label Text="Rendered Files" 
+                       FontSize="32"
+                       FontAttributes="Bold"
+                       TextColor="#333"
+                       Margin="0,20,0,20"/>
+
+                <!-- Rendered Files Container -->
+                <VerticalStackLayout x:Name="RenderedFilesContainer" Spacing="15">
+                    <!-- Files will be added dynamically -->
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+        </Grid>
+    </Grid>
+</ContentPage>

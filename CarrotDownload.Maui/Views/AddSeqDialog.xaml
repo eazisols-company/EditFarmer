@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarrotDownload.Maui.Views.AddSeqDialog"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             BackgroundColor="#80000000"
+             Title="Add Files to Playlist">
+
+    <Grid>
+        <!-- Dialog Container -->
+        <Border BackgroundColor="White"
+                StrokeShape="RoundRectangle 8"
+                Stroke="#e0e0e0"
+                StrokeThickness="1"
+                Padding="30"
+                WidthRequest="600"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+            
+            <VerticalStackLayout Spacing="20">
+                <!-- Header -->
+                <Label Text="Add Files to Playlist"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       TextColor="#333"
+                       HorizontalOptions="Center"/>
+
+                <!-- File Selection -->
+                <VerticalStackLayout Spacing="10">
+                    <Button Text="📁 Select File"
+                            BackgroundColor="#2196F3"
+                            TextColor="White"
+                            FontSize="16"
+                            FontAttributes="Bold"
+                            CornerRadius="8"
+                            HeightRequest="50"
+                            Clicked="OnSelectFileClicked"/>
+                    
+                    <Label x:Name="SelectedFileLabel"
+                           Text="No file selected"
+                           FontSize="12"
+                           TextColor="#666"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+
+                <!-- Slot Position Input -->
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="Enter slot position (a-z)" FontSize="14" TextColor="#333"/>
+                    <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="8,0" Margin="1">
+                        <controls:BorderlessEntry x:Name="SlotPositionEntry"
+                               Placeholder="Enter slot (a-z)"
+                               MaxLength="1"
+                               BackgroundColor="Transparent"
+                               TextColor="#333"/>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Privacy Options -->
+                <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
+                    <RadioButton x:Name="PrivateRadio"
+                                Content="Private"
+                                TextColor="#333"
+                                IsChecked="True"/>
+                    <RadioButton x:Name="PublicRadio"
+                                Content="Public"
+                                TextColor="#333"/>
+                </HorizontalStackLayout>
+
+                <!-- Buttons -->
+                <HorizontalStackLayout Spacing="15" HorizontalOptions="Center" Margin="0,10,0,0">
+                    <Button Text="Add Seq"
+                            BackgroundColor="#2196F3"
+                            TextColor="White"
+                            BorderColor="#e0e0e0"
+                            BorderWidth="1"
+                            FontSize="14"
+                            FontAttributes="Bold"
+                            CornerRadius="4"
+                            HeightRequest="40"
+                            WidthRequest="120"
+                            Clicked="OnAddSeqClicked"/>
+                    
+                    <Button Text="Cancel"
+                            BackgroundColor="#6c757d"
+                            TextColor="White"
+                            BorderColor="#e0e0e0"
+                            BorderWidth="1"
+                            FontSize="14"
+                            CornerRadius="4"
+                            HeightRequest="40"
+                            WidthRequest="120"
+                            Clicked="OnCancelClicked"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentPage>

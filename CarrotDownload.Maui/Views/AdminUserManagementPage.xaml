@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Views.AdminUserManagementPage"
+             Title="User Management"
+             BackgroundColor="White"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Admin Navigation Bar -->
+        <controls:AdminNavigationBar x:Name="AdminNavBar" Grid.Row="0"/>
+        
+        <!-- Header -->
+        <Grid Grid.Row="1" ColumnDefinitions="0.5*,11*,0.5*">
+        <VerticalStackLayout Grid.Column="1" Spacing="15" Margin="20,10,20,10">
+            <Label Text="👥 User Management"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="#ff5722"
+                   HorizontalOptions="Center"/>
+            
+            <Button x:Name="RefreshButton"
+                    Text="🔄 Refresh List"
+                    BackgroundColor="White"
+                    TextColor="#ff5722"
+                    BorderColor="#e5e5e5"
+                    BorderWidth="1"
+                    CornerRadius="6"
+                    HeightRequest="45"
+                    Clicked="OnRefreshClicked"/>
+        </VerticalStackLayout>
+        </Grid>
+
+        <!-- Users List -->
+        <Grid Grid.Row="2" ColumnDefinitions="0.5*,11*,0.5*">
+        <ScrollView Grid.Column="1" Margin="20,0" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout x:Name="UsersContainer" Spacing="15"/>
+        </ScrollView>
+        </Grid>
+
+        <!-- Toast Notifications -->
+        <controls:NotificationOverlay Grid.RowSpan="3" />
+    </Grid>
+</ContentPage>

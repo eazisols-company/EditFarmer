@@ -1,0 +1,48 @@
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:services="clr-namespace:CarrotDownload.Maui.Services"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Controls.NotificationOverlay"
+             InputTransparent="True"
+             VerticalOptions="End"
+             HorizontalOptions="End"
+             Padding="20"
+             ZIndex="999">
+
+    <ContentView.Resources>
+        <controls:TypeToIconConverter x:Key="TypeToIconConverter" />
+    </ContentView.Resources>
+    
+    <VerticalStackLayout BindableLayout.ItemsSource="{x:Static services:NotificationService.Notifications}"
+                         Spacing="10"
+                         WidthRequest="350">
+        <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="services:NotificationMessage">
+                <Border BackgroundColor="{Binding BackgroundColor}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="15,12"
+                        Margin="0,0,0,5"
+                        InputTransparent="False">
+                    <Border.Shadow>
+                        <Shadow Brush="Black" Offset="0,4" Radius="10" Opacity="0.15"/>
+                    </Border.Shadow>
+                    
+                    <Grid ColumnDefinitions="Auto, *">
+                        <Label Text="{Binding Type, Converter={StaticResource TypeToIconConverter}}" 
+                               TextColor="White" 
+                               FontSize="18" 
+                               VerticalOptions="Center"
+                               Margin="0,0,10,0"/>
+                        <Label Grid.Column="1"
+                               Text="{Binding Message}"
+                               TextColor="White"
+                               FontSize="14"
+                               VerticalOptions="Center"
+                               LineBreakMode="WordWrap"/>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </BindableLayout.ItemTemplate>
+    </VerticalStackLayout>
+</ContentView>

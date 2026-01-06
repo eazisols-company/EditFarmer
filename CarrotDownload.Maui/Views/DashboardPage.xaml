@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Views.DashboardPage"
+             BackgroundColor="White"
+             Shell.NavBarIsVisible="False">
+
+    <!-- Main Content Area -->
+    <Grid RowDefinitions="Auto,*">
+        <!-- Navigation Bar -->
+        <controls:NavigationBar Grid.Row="0"/>
+        
+        
+        <ScrollView Grid.Row="1" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Spacing="0">
+            <Grid ColumnDefinitions="0.5*,11*,0.5*">
+                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" Padding="20" ColumnSpacing="20">
+                
+                <!-- Left Side - Main Content -->
+                <VerticalStackLayout Grid.Column="0" Spacing="20">
+                    
+                    <!-- Add Files to Programming Section -->
+                    <Border BackgroundColor="#f0f0f0"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="#999"
+                            StrokeThickness="1"
+                            StrokeDashArray="5,5"
+                            Padding="30"
+                            HorizontalOptions="Center"
+                            MaximumWidthRequest="1200">
+                        <VerticalStackLayout Spacing="15">
+                            <Label Text="Add Files to Programming"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#333"
+                                   HorizontalOptions="Center"/>
+                            
+                            <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="8,0" WidthRequest="300" HorizontalOptions="Center" Margin="1">
+                                <controls:BorderlessEntry x:Name="ProgramTitleEntry"
+                                       Placeholder="Enter program title"
+                                       PlaceholderColor="#999"
+                                       TextColor="#333"
+                                       BackgroundColor="Transparent"
+                                       HeightRequest="38"/>
+                            </Border>
+                            
+                            <!-- Dynamic File/Slot Pairs Container -->
+                            <VerticalStackLayout x:Name="FileSlotPairsContainer" Spacing="20">
+                                <!-- Initial file/slot pair will be added here -->
+                            </VerticalStackLayout>
+                            
+                            <!-- Add Slot Button -->
+                            <Button Text="+ Add Slot"
+                                    BackgroundColor="#007bff"
+                                    TextColor="White"
+                                    FontSize="14"
+                                    FontAttributes="Bold"
+                                    CornerRadius="4"
+                                    WidthRequest="120"
+                                    HeightRequest="35"
+                                    HorizontalOptions="Center"
+                                    Clicked="OnAddSlotClicked"/>
+                            
+                            <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                                <RadioButton x:Name="ProgramPrivateRadio"
+                                            Content="Private"
+                                            TextColor="#333"
+                                            IsChecked="True"/>
+                                <RadioButton x:Name="ProgramPublicRadio"
+                                            Content="Public"
+                                            TextColor="#333"/>
+                            </HorizontalStackLayout>
+                            
+                            <Button Text="Upload Programming Files"
+                                    BackgroundColor="White"
+                                    TextColor="#ff6900"
+                                    BorderColor="#ff6900"
+                                    BorderWidth="1"
+                                    FontSize="14"
+                                    FontAttributes="Bold"
+                                    CornerRadius="20"
+                                    WidthRequest="250"
+                                    HeightRequest="42"
+                                    HorizontalOptions="Center"
+                                    Clicked="OnUploadProgrammingFilesClicked"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+
+                    <!-- Upload Section -->
+                    <VerticalStackLayout Spacing="0" BackgroundColor="Transparent" Padding="30">
+                        
+                        <!-- Top Radio Buttons (Toggle Views) -->
+                        <HorizontalStackLayout Spacing="20" Margin="0,0,0,20">
+                            <RadioButton Content="Files"
+                                        TextColor="#333"
+                                        IsChecked="True"
+                                        CheckedChanged="OnFilesCheckedChanged"/>
+                            <RadioButton Content="Playlist"
+                                        TextColor="#333"
+                                        CheckedChanged="OnPlaylistCheckedChanged"/>
+                        </HorizontalStackLayout>
+
+                        <!-- PROJECT VIEW -->
+                        <VerticalStackLayout IsVisible="{Binding IsProjectViewVisible}" Spacing="0">
+                            <!-- Upload Project Header -->
+                            <Label Text="Upload Project"
+                                   FontSize="24"
+                                   FontAttributes="Bold"
+                                   TextColor="#333"
+                                   Margin="0,0,0,15"/>
+                            
+                            <!-- Project Title Input -->
+                            <Label Text="Project Title:"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#333"
+                                   Margin="0,0,0,5"/>
+                            
+                            <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="8,0" Margin="1,0,1,20">
+                                <controls:BorderlessEntry x:Name="ProjectTitleEntry"
+                                       Placeholder=""
+                                       TextColor="#333"
+                                       BackgroundColor="Transparent"
+                                       HeightRequest="40"/>
+                            </Border>
+                            
+                            <!-- Drag and Drop Zone -->
+                            <Border Stroke="#d0d0d0"
+                                    StrokeThickness="2"
+                                    StrokeDashArray="5,5"
+                                    StrokeShape="RoundRectangle 8"
+                                    BackgroundColor="#fafafa"
+                                    Padding="40,30"
+                                    Margin="0,0,0,15">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPickFileClicked"/>
+                                <DropGestureRecognizer AllowDrop="True" 
+                                                       DragOver="OnDragOver" 
+                                                       DragLeave="OnDragLeave" 
+                                                       Drop="OnFilesDropped"/>
+                            </Border.GestureRecognizers>
+                                <VerticalStackLayout Spacing="10" HorizontalOptions="Center" InputTransparent="True">
+                                    <Label Text="📁" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>
+                                    <Label Text="Drag and drop some files here, or click to select files"
+                                           FontSize="14"
+                                           TextColor="#666"
+                                           HorizontalOptions="Center"
+                                           HorizontalTextAlignment="Center"
+                                           InputTransparent="True"/>
+                                </VerticalStackLayout>
+                            </Border>
+                            
+                            <!-- Selected Files Preview List -->
+                            <CollectionView ItemsSource="{Binding SelectedFiles}" 
+                                          Margin="0,0,0,15"
+                                          IsVisible="{Binding SelectedFiles.Count}">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="35, Auto, *" 
+                                              Padding="0,15"
+                                              ColumnSpacing="15">
+                                            <!-- Index -->
+                                            <Label Grid.Column="0" 
+                                                   Text="{Binding Index, StringFormat='{0}.'}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#333"
+                                                   VerticalOptions="Center"/>
+                                            
+                                            <!-- Preview with Overlay X -->
+                                            <Grid Grid.Column="1" HorizontalOptions="Start" VerticalOptions="Center">
+                                                <Border WidthRequest="240"
+                                                        HeightRequest="135"
+                                                        StrokeShape="RoundRectangle 8"
+                                                        Stroke="#e0e0e0"
+                                                        StrokeThickness="1"
+                                                        BackgroundColor="#f5f5f5">
+                                                    <Grid>
+                                                        <Label Text="📄" 
+                                                               FontSize="30" 
+                                                               HorizontalOptions="Center" 
+                                                               VerticalOptions="Center"
+                                                               Opacity="0.5"/>
+                                                        <Image Source="{Binding Thumbnail}"
+                                                               Aspect="AspectFill"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Remove Button Overlay -->
+                                                <Border BackgroundColor="#ff5722"
+                                                       WidthRequest="28"
+                                                       HeightRequest="28"
+                                                       StrokeShape="RoundRectangle 14"
+                                                       HorizontalOptions="End"
+                                                       VerticalOptions="Start"
+                                                       TranslationX="10"
+                                                       TranslationY="-10"
+                                                       ZIndex="1">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnRemoveFileClicked" CommandParameter="{Binding .}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="✕"
+                                                           TextColor="White"
+                                                           FontSize="16"
+                                                           FontAttributes="Bold"
+                                                           HorizontalOptions="Center"
+                                                           VerticalOptions="Center"
+                                                           Margin="0,0,0,1"/>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- File Info -->
+                                            <VerticalStackLayout Grid.Column="2" VerticalOptions="Center" Spacing="4">
+                                                <Label Text="{Binding FileName}"
+                                                       FontSize="14"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#333"
+                                                       LineBreakMode="TailTruncation"/>
+                                                <Label Text="{Binding FileSize}"
+                                                       FontSize="12"
+                                                       TextColor="#666"/>
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                            
+                            <!-- Privacy Options -->
+                            <HorizontalStackLayout Spacing="15" Margin="0,0,0,20">
+                                <RadioButton x:Name="ProjectPrivateRadio"
+                                            Content="Private"
+                                            TextColor="#333"
+                                            IsChecked="True"/>
+                                <RadioButton x:Name="ProjectPublicRadio"
+                                            Content="Public"
+                                            TextColor="#333"/>
+                            </HorizontalStackLayout>
+                            
+                            <!-- Upload Button (Dashed Orange Style) -->
+                            <Button Text="Upload Files"
+                                    BackgroundColor="White"
+                                    TextColor="#ff5722"
+                                    FontSize="14"
+                                    FontAttributes="Bold"
+                                    BorderColor="#ff5722"
+                                    BorderWidth="1"
+                                    CornerRadius="4"
+                                    WidthRequest="120"
+                                    HeightRequest="35"
+                                    HorizontalOptions="Start"
+                                    Clicked="OnUploadProjectClicked"
+                                    Margin="0,0,0,40"/>
+                        </VerticalStackLayout>
+
+
+                        <!-- PLAYLIST VIEW (New Implementation) -->
+                        <VerticalStackLayout IsVisible="{Binding IsPlaylistViewVisible}" Spacing="0">
+                            <!-- Playlist Header -->
+                            <Label Text="Playlist"
+                                   FontSize="26"
+                                   FontAttributes="Bold"
+                                   TextColor="#333"
+                                   Margin="0,0,0,15"/>
+                            
+                            <!-- Inline Playlist Title -->
+                            <HorizontalStackLayout Spacing="10" Margin="0,0,0,15" VerticalOptions="Center">
+                                <Label Text="Playlist Title"
+                                       FontSize="15"
+                                       FontAttributes="Bold"
+                                       TextColor="#333"
+                                       VerticalOptions="Center"
+                                       WidthRequest="100"/>
+                                
+                                <Border x:Name="PlaylistTitleBorder" Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="5,0" VerticalOptions="Center" Margin="1">
+                                    <controls:BorderlessEntry x:Name="PlaylistTitleEntry"
+                                           Placeholder="Enter playlist title"
+                                           PlaceholderColor="#999"
+                                           TextColor="#333"
+                                           BackgroundColor="Transparent"
+                                           HeightRequest="35"
+                                           WidthRequest="250"
+                                           VerticalOptions="Center"/>
+                                </Border>
+                            </HorizontalStackLayout>
+                            
+                            <!-- Inline Access Options -->
+                            <HorizontalStackLayout Spacing="10" Margin="0,0,0,15" VerticalOptions="Center">
+                                <Label Text="Access"
+                                       FontSize="15"
+                                       FontAttributes="Bold"
+                                       TextColor="#333"
+                                       VerticalOptions="Center"
+                                       WidthRequest="100"/>
+                                
+                                <HorizontalStackLayout Spacing="15">
+                                    <RadioButton Content="Private"
+                                                TextColor="#333"
+                                                IsChecked="True"/>
+                                    <RadioButton Content="Public"
+                                                TextColor="#333"/>
+                                </HorizontalStackLayout>
+                            </HorizontalStackLayout>
+                            
+                            <!-- Drag and Drop Zone -->
+                            <Border Stroke="#d0d0d0"
+                                    StrokeThickness="2"
+                                    StrokeDashArray="5,5"
+                                    StrokeShape="RoundRectangle 8"
+                                    BackgroundColor="#fafafa"
+                                    Padding="40,30"
+                                    Margin="0,0,0,15">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPickFileClicked"/>
+                                    <DropGestureRecognizer AllowDrop="True" 
+                                                           DragOver="OnDragOver" 
+                                                           DragLeave="OnDragLeave" 
+                                                           Drop="OnFilesDropped"/>
+                                </Border.GestureRecognizers>
+                                <VerticalStackLayout Spacing="10" HorizontalOptions="Center" InputTransparent="True">
+                                    <Label Text="🎵" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>
+                                    <Label Text="Drag &amp; drop audio or video files here, or click to select"
+                                           FontSize="14"
+                                           TextColor="#666"
+                                           HorizontalOptions="Center"
+                                           HorizontalTextAlignment="Center"
+                                           InputTransparent="True"/>
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Selected Files Preview List (Playlist) -->
+                            <CollectionView ItemsSource="{Binding SelectedFiles}" 
+                                          Margin="0,0,0,15"
+                                          IsVisible="{Binding SelectedFiles.Count}">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="35, Auto, *" 
+                                              Padding="0,15"
+                                              ColumnSpacing="15">
+                                            <!-- Index -->
+                                            <Label Grid.Column="0" 
+                                                   Text="{Binding Index, StringFormat='{0}.'}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#333"
+                                                   VerticalOptions="Center"/>
+
+                                            <!-- Preview with Overlay X -->
+                                            <Grid Grid.Column="1" HorizontalOptions="Start" VerticalOptions="Center">
+                                                <Border WidthRequest="240"
+                                                        HeightRequest="135"
+                                                        StrokeShape="RoundRectangle 8"
+                                                        Stroke="#e0e0e0"
+                                                        StrokeThickness="1"
+                                                        BackgroundColor="#f5f5f5">
+                                                    <Grid>
+                                                        <Label Text="🎵" 
+                                                               FontSize="30" 
+                                                               HorizontalOptions="Center" 
+                                                               VerticalOptions="Center"
+                                                               Opacity="0.5"/>
+                                                        <Image Source="{Binding Thumbnail}"
+                                                               Aspect="AspectFill"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Remove Button Overlay -->
+                                                <Border BackgroundColor="#ff5722"
+                                                       WidthRequest="28"
+                                                       HeightRequest="28"
+                                                       StrokeShape="RoundRectangle 14"
+                                                       HorizontalOptions="End"
+                                                       VerticalOptions="Start"
+                                                       TranslationX="10"
+                                                       TranslationY="-10"
+                                                       ZIndex="1">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnRemoveFileClicked" CommandParameter="{Binding .}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="✕"
+                                                           TextColor="White"
+                                                           FontSize="16"
+                                                           FontAttributes="Bold"
+                                                           HorizontalOptions="Center"
+                                                           VerticalOptions="Center"
+                                                           Margin="0,0,0,1"/>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- File Info -->
+                                            <VerticalStackLayout Grid.Column="2" VerticalOptions="Center" Spacing="4">
+                                                <Label Text="{Binding FileName}"
+                                                       FontSize="14"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#333"
+                                                       LineBreakMode="TailTruncation"/>
+                                                <Label Text="{Binding FileSize}"
+                                                       FontSize="12"
+                                                       TextColor="#666"/>
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <!-- Upload Playlist Button (Dashed Orange) -->
+                            <Border Stroke="#ff5722"
+                                    StrokeThickness="2"
+                                    StrokeDashArray="4,2"
+                                    StrokeShape="RoundRectangle 4"
+                                    BackgroundColor="White"
+                                    HorizontalOptions="Start"
+                                    HeightRequest="40"
+                                    Padding="15,0"
+                                    Margin="0,0,0,40">
+                                <Label Text="Upload Playlist"
+                                       TextColor="#333"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       VerticalOptions="Center"
+                                       HorizontalOptions="Center"/>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnUploadPlaylistClicked"/>
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <!-- Your Projects Section -->
+                        <Label Text="Your Projects"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="#555"
+                               Margin="0,0,0,15"/>
+
+                        <!-- Projects List -->
+                        <CollectionView ItemsSource="{Binding Projects}"
+                                      HeightRequest="200"
+                                      SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Stroke="Transparent"
+                                            BackgroundColor="#f9f9f9"
+                                            Padding="15,10"
+                                            Margin="0,0,0,5">
+                                        <Grid ColumnDefinitions="30,*,Auto">
+                                            <!-- Index -->
+                                            <Label Grid.Column="0"
+                                                   Text="{Binding Index, StringFormat='{0}.'}"
+                                                   TextColor="#333"
+                                                   VerticalOptions="Center"/>
+                                            
+                                            <!-- Project Name (Clickable) -->
+                                            <Label Grid.Column="1"
+                                                   Text="{Binding Name}"
+                                                   TextColor="#2196F3"
+                                                   FontAttributes="Bold"
+                                                   VerticalOptions="Center">
+                                                <Label.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="OnProjectClicked" CommandParameter="{Binding .}"/>
+                                                </Label.GestureRecognizers>
+                                            </Label>
+                                            
+                                            <!-- Delete Button (Red Square) -->
+                                            <Border Grid.Column="2" 
+                                                    BackgroundColor="#ff5252"
+                                                    WidthRequest="20"
+                                                    HeightRequest="20"
+                                                    StrokeShape="Rectangle"
+                                                    StrokeThickness="0">
+                                                <Border.GestureRecognizers>
+                                                    <TapGestureRecognizer Tapped="OnDeleteProjectClicked" 
+                                                                        CommandParameter="{Binding .}"/>
+                                                </Border.GestureRecognizers>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        
+
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Right Sidebar -->
+                <VerticalStackLayout Grid.Column="1" Spacing="6">
+                    <Label Text="Programming"
+                           FontSize="16"
+                           TextColor="#2196F3"
+                           FontAttributes="Bold">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnProgrammingClicked"/>
+                        </Label.GestureRecognizers>
+                    </Label>
+                    <Label Text="Sequence"
+                           FontSize="16"
+                           TextColor="#2196F3"
+                           FontAttributes="Bold">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSequenceClicked"/>
+                        </Label.GestureRecognizers>
+                    </Label>
+                    <Label Text="Downloads"
+                           FontSize="16"
+                           TextColor="#2196F3"
+                           FontAttributes="Bold">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnDownloadsClicked"/>
+                        </Label.GestureRecognizers>
+                    </Label>
+                </VerticalStackLayout>
+
+            </Grid>
+                </Grid>
+
+            
+            <!-- Footer at end of scrollable content -->
+            <controls:Footer/>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Toast Notifications -->
+        <controls:NotificationOverlay Grid.RowSpan="2" />
+    </Grid>
+
+</ContentPage>

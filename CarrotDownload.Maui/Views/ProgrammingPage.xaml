@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarrotDownload.Maui.Views.ProgrammingPage"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             BackgroundColor="White"
+             Shell.NavBarIsVisible="False">
+    
+    <Grid RowDefinitions="Auto,*">
+        <!-- Navigation Bar -->
+        <controls:NavigationBar Grid.Row="0" />
+        
+        <Grid Grid.Row="1" ColumnDefinitions="0.5*,11*,0.5*">
+        <!-- Back Button -->
+
+
+        <ScrollView Grid.Column="1" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Padding="40" Spacing="30">
+                
+            <!-- Back Button -->
+            <Button Text="← Back to Dashboard"
+                    BackgroundColor="#2196F3"
+                    TextColor="White"
+                    FontSize="14"
+                    CornerRadius="4"
+                    HeightRequest="36"
+                    WidthRequest="180"
+                    HorizontalOptions="Start"
+                    Clicked="OnBackClicked"/>
+            
+            <!-- Programming Files Section -->
+            <Border BackgroundColor="#f5f5f5"
+                    StrokeShape="RoundRectangle 12"
+                    Stroke="#e0e0e0"
+                    StrokeThickness="1"
+                    Padding="30">
+                <VerticalStackLayout Spacing="20">
+                    <Label Text="Programming Files"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="#333"
+                           HorizontalOptions="Center"/>
+                    
+                    <!-- Program Titles (Tabs) -->
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout x:Name="ProgramTitlesContainer" Spacing="10"/>
+                    </ScrollView>
+                    
+                    <!-- Error Message -->
+                    <Border x:Name="ErrorMessageBorder"
+                            BackgroundColor="#ffe6e6"
+                            StrokeShape="RoundRectangle 6"
+                            Stroke="#ff4444"
+                            StrokeThickness="1"
+                            Padding="15,10"
+                            IsVisible="False"
+                            HorizontalOptions="Center">
+                        <Label x:Name="ErrorMessageLabel"
+                               TextColor="#cc0000"
+                               FontSize="13"
+                               HorizontalOptions="Center"/>
+                    </Border>
+                    
+                    <!-- Selected Program Details -->
+                    <Border BackgroundColor="White"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="#e0e0e0"
+                            StrokeThickness="1"
+                            Padding="20"
+                            x:Name="ProgramDetailsContainer">
+                        <VerticalStackLayout Spacing="15">
+                            <Label x:Name="DetailsHeaderLabel"
+                                   Text="Details for: "
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="#333"/>
+                            
+                            <!-- Files List -->
+                            <CollectionView x:Name="ProgramFilesCollectionView"
+                                           ItemsSource="{Binding SelectedProgramFiles}">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BackgroundColor="#f9f9f9"
+                                               StrokeShape="RoundRectangle 6"
+                                               Stroke="#e0e0e0"
+                                               StrokeThickness="1"
+                                               Padding="15"
+                                               Margin="0,5">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Grid.Column="0"
+                                                       Text="{Binding FileName}"
+                                                       FontSize="14"
+                                                       TextColor="#555"
+                                                       VerticalOptions="Center"/>
+                                                <HorizontalStackLayout Grid.Column="1" Spacing="5">
+                                                    <HorizontalStackLayout.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnSlotPositionTapped"/>
+                                                    </HorizontalStackLayout.GestureRecognizers>
+                                                    
+                                                    <!-- Clickable Dot -->
+                                                    <Label Text="•"
+                                                           FontSize="30"
+                                                           TextColor="#666"
+                                                           VerticalOptions="Center"
+                                                           Margin="0,0,5,0">
+                                                        <Label.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnDotClicked" CommandParameter="{Binding .}"/>
+                                                        </Label.GestureRecognizers>
+                                                    </Label>
+                                                    
+                                                    <Label Text="Slot Position:"
+                                                           FontSize="13"
+                                                           FontAttributes="Bold"
+                                                           TextColor="#666"
+                                                           VerticalOptions="Center"/>
+                                                    <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="5,0" VerticalOptions="Center" Margin="1">
+                                                        <controls:BorderlessEntry Text="{Binding SlotPosition}"
+                                                               FontSize="13"
+                                                               WidthRequest="30"
+                                                               HeightRequest="30"
+                                                               MaxLength="1"
+                                                               BackgroundColor="Transparent"
+                                                               TextColor="#333"
+                                                               HorizontalTextAlignment="Center"
+                                                               VerticalOptions="Center"
+                                                               IsReadOnly="True"
+                                                               TextChanged="OnSlotChanged"
+                                                               Unfocused="OnSlotEntryUnfocused"/>
+                                                    </Border>
+                                                </HorizontalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                            
+                            <!-- Save Changes Button -->
+                            <Button Text="Save Changes"
+                                    BackgroundColor="#28a745"
+                                    TextColor="White"
+                                    FontSize="14"
+                                    FontAttributes="Bold"
+                                    CornerRadius="6"
+                                    WidthRequest="150"
+                                    HeightRequest="40"
+                                    HorizontalOptions="Center"
+                                    Clicked="OnSaveSlotChangesClicked"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+            
+            <!-- User Playlists Section -->
+            <Border BackgroundColor="#f5f5f5"
+                    StrokeShape="RoundRectangle 12"
+                    Stroke="#e0e0e0"
+                    StrokeThickness="1"
+                    Padding="30">
+                <VerticalStackLayout Spacing="20">
+                    <Label Text="User Playlists"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="#333"
+                           HorizontalOptions="Center"/>
+                    
+                    <!-- Playlists List -->
+                    <VerticalStackLayout x:Name="PlaylistsContainer" Spacing="10">
+                        <!-- Playlists will be added here dynamically -->
+                    </VerticalStackLayout>
+                    
+                    <Button Text="Apply Files"
+                            BackgroundColor="#6c757d"
+                            TextColor="White"
+                            FontSize="14"
+                            CornerRadius="6"
+                            WidthRequest="150"
+                            HeightRequest="40"
+                            HorizontalOptions="Center"
+                            Clicked="OnApplyFilesClicked"/>
+                </VerticalStackLayout>
+            </Border>
+            
+        </VerticalStackLayout>
+    </ScrollView>
+        </Grid>
+
+        <!-- Toast Notifications -->
+        <controls:NotificationOverlay Grid.RowSpan="2" />
+    </Grid>
+</ContentPage>
