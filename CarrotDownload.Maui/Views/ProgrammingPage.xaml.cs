@@ -169,7 +169,7 @@ public partial class ProgrammingPage : ContentPage
 							try 
 							{
 								IO.File.Delete(file.FilePath);
-								Console.WriteLine($"Deleted file: {file.FilePath}");
+								IO.File.Delete(file.FilePath);
 								
 								// 3. Check if folder is empty and delete it
 								var folderPath = IO.Path.GetDirectoryName(file.FilePath);
@@ -180,13 +180,11 @@ public partial class ProgrammingPage : ContentPage
 									if (!IO.Directory.EnumerateFileSystemEntries(folderPath).Any())
 									{
 										IO.Directory.Delete(folderPath);
-										Console.WriteLine($"Deleted empty folder: {folderPath}");
 									}
 								}
 							}
-							catch (Exception ex)
+							catch (Exception)
 							{
-								Console.WriteLine($"Warning: Failed to delete file/folder: {ex.Message}");
 							}
 						}
 
@@ -426,13 +424,7 @@ public partial class ProgrammingPage : ContentPage
 			// Sort programming files by slot position (a, b, c, etc.)
 			var sortedProgrammingFiles = SelectedProgramFiles.OrderBy(f => f.SlotPosition).ToList();
 
-			// Confirm the operation
-			// bool confirm = await DisplayAlert("Confirm Apply Files",
-			// 	$"This will replace {Math.Min(sortedProgrammingFiles.Count, sortedPlaylistFiles.Count)} files in '{project.Title}' with files from '{_selectedProgramTitle}'.\n\nA new version of the playlist will be created. Continue?",
-			// 	"Yes", "No");
 
-			// if (!confirm)
-			// 	return;
 
 			// Delete old playlist files from database and disk
 			foreach (var oldFile in sortedPlaylistFiles)
@@ -447,9 +439,8 @@ public partial class ProgrammingPage : ContentPage
 					{
 						IO.File.Delete(oldFile.FilePath);
 					}
-					catch (Exception ex)
+					catch (Exception)
 					{
-						Console.WriteLine($"Warning: Failed to delete old file {oldFile.FilePath}: {ex.Message}");
 					}
 				}
 			}
@@ -465,7 +456,6 @@ public partial class ProgrammingPage : ContentPage
 				var playlistFolderPath = IO.Path.GetDirectoryName(oldPlaylistFile.FilePath);
 				if (string.IsNullOrEmpty(playlistFolderPath) || !IO.Directory.Exists(playlistFolderPath))
 				{
-					Console.WriteLine($"Warning: Playlist folder not found: {playlistFolderPath}");
 					continue;
 				}
 
@@ -499,7 +489,6 @@ public partial class ProgrammingPage : ContentPage
 				}
 				else
 				{
-					Console.WriteLine($"Warning: Programming file not found: {programmingFile.FilePath}");
 				}
 			}
 

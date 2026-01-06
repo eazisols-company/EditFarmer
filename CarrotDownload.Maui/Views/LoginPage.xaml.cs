@@ -89,9 +89,6 @@ public partial class LoginPage : ContentPage
 			// Get Device ID (MAC Address)
 			var deviceId = _deviceInfoService.GetDeviceId();
 			
-			// DEBUG: Console logging only
-			Console.WriteLine($"[LoginPage] Attempting login with Device ID: {deviceId}");
-
 			// Authenticate user with device binding check
 			var user = await _mongoService.LoginUserAsync(email, password, deviceId);
 
@@ -141,7 +138,9 @@ public partial class LoginPage : ContentPage
 			ShowMessage($"Error: {ex.Message}", false);
 			LoginButton.IsEnabled = true;
 			LoginButton.Text = originalText;
-			Console.WriteLine($"[LoginPage] Login Error: {ex}");
+			ShowMessage($"Error: {ex.Message}", false);
+			LoginButton.IsEnabled = true;
+			LoginButton.Text = originalText;
 		}
     }
 
@@ -158,21 +157,17 @@ public partial class LoginPage : ContentPage
                 return;
 
             // Verify admin credentials in database
-            Console.WriteLine("[LoginPage] Checking admin credentials in database...");
+            // Verify admin credentials in database
             var isValidAdmin = await _mongoService.LoginAdminInDbAsync(email, password);
-            Console.WriteLine($"[LoginPage] Admin login result: {isValidAdmin}");
-            
+                        
             if (isValidAdmin)
             {
-                Console.WriteLine("[LoginPage] Admin login SUCCESS. Setting secure storage...");
                 await SecureStorage.Default.SetAsync("is_admin", "true");
                 
                 try
                 {
-                    Console.WriteLine("[LoginPage] Creating AdminDashboardPage...");
                     var adminDashboard = new AdminDashboardPage(_mongoService);
                     
-                    Console.WriteLine("[LoginPage] Creating NavigationPage wrapping admin dashboard...");
                     var adminNavPage = new NavigationPage(adminDashboard)
                     {
                         BarBackgroundColor = Colors.Transparent,
@@ -182,19 +177,15 @@ public partial class LoginPage : ContentPage
                     // Hide the navigation bar completely
                     NavigationPage.SetHasNavigationBar(adminDashboard, false);
                     
-                    Console.WriteLine("[LoginPage] Switching MainPage to Admin Portal on UI thread...");
                     MainThread.BeginInvokeOnMainThread(() => {
                         try {
                             Application.Current.MainPage = adminNavPage;
-                            Console.WriteLine("[LoginPage] MainPage switched successfully.");
                         } catch (Exception ex) {
-                            Console.WriteLine($"[LoginPage] FATAL ERROR during MainPage switch: {ex.Message}");
                         }
                     });
                 }
                 catch (Exception navEx)
                 {
-                    Console.WriteLine($"[LoginPage] Admin navigation initialization error: {navEx}");
                     await NotificationService.ShowError($"Failed to initialize admin portal: {navEx.Message}");
                 }
             }
@@ -205,7 +196,8 @@ public partial class LoginPage : ContentPage
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[LoginPage] Admin login error: {ex}");
+        catch (Exception ex)
+        {
             await NotificationService.ShowError($"Admin login failed: {ex.Message}");
         }
     }

@@ -47,7 +47,7 @@ artifacts/
 **/.vs/
 
 # Large binaries
+# Large binaries
 **/ffmpeg.exe
 **/ffplay.exe
 **/*.exe
-!**/installer-script.iss
