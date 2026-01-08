@@ -16,7 +16,7 @@
             
             <!-- Back Button -->
             <Button Text="← Back to Dashboard"
-                    BackgroundColor="#2196F3"
+                    BackgroundColor="#FF6600"
                     TextColor="White"
                     FontSize="14"
                     CornerRadius="4"

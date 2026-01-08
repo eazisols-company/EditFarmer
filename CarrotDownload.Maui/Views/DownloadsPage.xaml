@@ -10,8 +10,8 @@
         <!-- Navigation Bar -->
         <controls:NavigationBar Grid.Row="0" />
 
-        <Grid Grid.Row="1" ColumnDefinitions="0.5*,11*,0.5*">
-        <ScrollView Grid.Column="1" Padding="20" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+        <Grid Grid.Row="1" ColumnDefinitions="1*,8*,1*">
+        <ScrollView Grid.Column="1" Padding="40,20" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
             <VerticalStackLayout Spacing="20">
                 <!-- Back Button -->
                 <Button Text="← Back to Dashboard"

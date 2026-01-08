@@ -425,28 +425,14 @@ public partial class DashboardPage : ContentPage
 
 		try
 		{
-			// Create storage folder for this programming 
-			// (Generate an ID for folder uniqueness like Projects)
-			var programmingId = Guid.NewGuid().ToString("N").Substring(0, 8);
-			var programmingFolderPath = CreateProgrammingFolder(programmingId, programTitle);
-
-			// Save all pairs to database (no cross-programming slot check)
+			// Save all pairs to database (use original paths)
 			foreach (var pair in _programmingFilePairs)
 			{
-				// Copy file to programming storage
-				var fileName = Path.GetFileName(pair.FilePath);
-				var destinationPath = Path.Combine(programmingFolderPath, fileName);
-				
-				if (File.Exists(pair.FilePath))
-				{
-					File.Copy(pair.FilePath, destinationPath, overwrite: true);
-				}
-
 				var programmingFile = new Database.Models.ProgrammingFileModel
 				{
 					ProgramTitle = programTitle,
-					FileName = fileName,
-					FilePath = destinationPath, // Use the new stored path
+					FileName = Path.GetFileName(pair.FilePath),
+					FilePath = pair.FilePath, // Use Original Path
 					SlotPosition = pair.SlotLetter,
 					IsPrivate = ProgramPrivateRadio.IsChecked,
 					UserId = currentUser.Id,
@@ -818,18 +804,11 @@ public partial class DashboardPage : ContentPage
 			// Generate unique project ID
 			var projectId = Guid.NewGuid().ToString("N").Substring(0, 8);
 			
-			// Create unique project folder: {ProjectId}_{ProjectTitle}
-			var projectFolderPath = CreateProjectFolder(projectId, title);
-
-			// Copy all selected files to project folder
+			// Use original paths
 			var savedFilePaths = new List<string>();
 			foreach (var file in SelectedFiles)
 			{
-				// Extract just the filename from the full path
-				var fileName = Path.GetFileName(file.FilePath);
-				var destinationPath = Path.Combine(projectFolderPath, fileName);
-				File.Copy(file.FilePath, destinationPath, overwrite: true);
-				savedFilePaths.Add(destinationPath);
+				savedFilePaths.Add(file.FilePath);
 			}
 
 			// Get current user ID
@@ -842,7 +821,7 @@ public partial class DashboardPage : ContentPage
 				ProjectId = projectId,
 				Title = title,
 				IsPrivate = isPrivate,
-				StoragePath = projectFolderPath,
+				StoragePath = "", // No storage path (using original files)
 				CreatedAt = DateTime.UtcNow,
 				Files = savedFilePaths,
 				UserId = userId
@@ -856,7 +835,7 @@ public partial class DashboardPage : ContentPage
 			{ 
 				Index = Projects.Count + 1,
 				Name = title,
-				StoragePath = projectFolderPath,
+				StoragePath = "",
 				ProjectId = projectId
 			});
 
@@ -903,11 +882,11 @@ public partial class DashboardPage : ContentPage
 					}
 				}
 
-				// Delete project folder and all files
-				if (!string.IsNullOrEmpty(project.StoragePath) && Directory.Exists(project.StoragePath))
-				{
-					Directory.Delete(project.StoragePath, recursive: true);
-				}
+				// Do NOT delete physical files as they are the user's original files
+				// if (!string.IsNullOrEmpty(project.StoragePath) && Directory.Exists(project.StoragePath))
+				// {
+				// 	Directory.Delete(project.StoragePath, recursive: true);
+				// }
 
 				// Remove from UI list
 				Projects.Remove(project);
@@ -933,7 +912,7 @@ public partial class DashboardPage : ContentPage
 		if (e.Parameter is ProjectModel project)
 		{
 			var projectDetailPage = new ProjectDetailPage(_authService, _mongoService, _ffmpegService);
-			projectDetailPage.LoadProject(project.ProjectId, project.Name, project.StoragePath);
+			projectDetailPage.LoadProject(project.ProjectId, project.Name);
 			await Navigation.PushAsync(projectDetailPage);
 		}
 	}
@@ -960,24 +939,13 @@ public partial class DashboardPage : ContentPage
 			var currentUser = await _authService.GetCurrentUserAsync();
 			var userId = currentUser?.Id ?? "unknown";
 
-			// Use the standard Project folder structure
-			// Documents/CarrotDownload Project/{ID}_{Title}
-			var projectFolderPath = CreateProjectFolder(projectId, title);
-			
-			// Create a "Playlists" subfolder inside the project folder
-			var playlistSubFolder = Path.Combine(projectFolderPath, "Playlists");
-			if (!Directory.Exists(playlistSubFolder))
-			{
-				Directory.CreateDirectory(playlistSubFolder);
-			}
-
 			// 2. Creates Project Model (Empty generic files list, because files are going to Playlists)
 			var project = new CarrotDownload.Database.Models.ProjectModel
 			{
 				ProjectId = projectId,
 				Title = title,
 				IsPrivate = true, // Default to private for playlist-created projects
-				StoragePath = projectFolderPath,
+				StoragePath = "", // No storage path
 				CreatedAt = DateTime.UtcNow,
 				Files = new List<string>(), // No generic project files
 				UserId = userId
@@ -990,17 +958,12 @@ public partial class DashboardPage : ContentPage
 			int slotNumber = 0;
 			foreach (var file in SelectedFiles)
 			{
-				// Copy file to the Project's "Playlists" subfolder
-				var fileName = Path.GetFileName(file.FilePath);
-				var destinationPath = Path.Combine(playlistSubFolder, fileName);
-				File.Copy(file.FilePath, destinationPath, overwrite: true);
-
-				// Create Playlist Entry linked to this Project
+				// Create Playlist Entry linked to this Project (Using Original Path)
 				var playlistFile = new CarrotDownload.Database.Models.PlaylistModel
 				{
 					ProjectId = projectId, // Link to the new Project
-					FileName = fileName,
-					FilePath = destinationPath,
+					FileName = Path.GetFileName(file.FilePath),
+					FilePath = file.FilePath, // Original Path
 					SlotPosition = ((char)('a' + slotNumber)).ToString(),
 					UserId = userId,
 					CreatedAt = DateTime.UtcNow
@@ -1015,7 +978,7 @@ public partial class DashboardPage : ContentPage
 			{ 
 				Index = Projects.Count + 1,
 				Name = title,
-				StoragePath = projectFolderPath,
+				StoragePath = "",
 				ProjectId = projectId
 			});
 

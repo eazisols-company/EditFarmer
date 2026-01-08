@@ -168,8 +168,8 @@ public partial class ProgrammingPage : ContentPage
 						{
 							try 
 							{
-								IO.File.Delete(file.FilePath);
-								IO.File.Delete(file.FilePath);
+								// IO.File.Delete(file.FilePath); // Do NOT delete physical file
+								// IO.File.Delete(file.FilePath); // Do NOT delete physical file
 								
 								// 3. Check if folder is empty and delete it
 								var folderPath = IO.Path.GetDirectoryName(file.FilePath);
@@ -424,72 +424,51 @@ public partial class ProgrammingPage : ContentPage
 			// Sort programming files by slot position (a, b, c, etc.)
 			var sortedProgrammingFiles = SelectedProgramFiles.OrderBy(f => f.SlotPosition).ToList();
 
-
-
-			// Delete old playlist files from database and disk
+			// Delete old playlist files from database only - do NOT delete physical files
 			foreach (var oldFile in sortedPlaylistFiles)
 			{
-				// Delete from database
+				// Delete from database only
 				await _mongoService.DeletePlaylistByIdAsync(oldFile.Id);
 
-				// Delete physical file
-				if (!string.IsNullOrEmpty(oldFile.FilePath) && IO.File.Exists(oldFile.FilePath))
-				{
-					try
-					{
-						IO.File.Delete(oldFile.FilePath);
-					}
-					catch (Exception)
-					{
-					}
-				}
+				// Do NOT delete physical files
+				// if (!string.IsNullOrEmpty(oldFile.FilePath) && IO.File.Exists(oldFile.FilePath))
+				// {
+				// 	try
+				// 	{
+				// 		IO.File.Delete(oldFile.FilePath);
+				// 	}
+				// 	catch (Exception)
+				// 	{
+				// 	}
+				// }
 			}
 
-			// Create new playlist files by copying programming files
+			// Create new playlist files using original programming file paths
 			int filesApplied = 0;
 			for (int i = 0; i < sortedPlaylistFiles.Count && i < sortedProgrammingFiles.Count; i++)
 			{
 				var oldPlaylistFile = sortedPlaylistFiles[i];
 				var programmingFile = sortedProgrammingFiles[i];
 
-				// Get the playlist folder path
-				var playlistFolderPath = IO.Path.GetDirectoryName(oldPlaylistFile.FilePath);
-				if (string.IsNullOrEmpty(playlistFolderPath) || !IO.Directory.Exists(playlistFolderPath))
-				{
-					continue;
-				}
-
-				// Copy the programming file to the playlist folder
+				// Use original programming file path - no copying
 				var newFileName = IO.Path.GetFileName(programmingFile.FilePath);
-				var newFilePath = IO.Path.Combine(playlistFolderPath, newFileName);
 
-				// Copy the programming file to the playlist folder (overwrite existing)
-
-				// Copy the file
-				if (IO.File.Exists(programmingFile.FilePath))
+				// Create new playlist entry in database with original path
+				var newPlaylistFile = new PlaylistModel
 				{
-					IO.File.Copy(programmingFile.FilePath, newFilePath, true);
+					ProjectId = project.ProjectId,
+					FileName = newFileName,
+					FilePath = programmingFile.FilePath, // Use original path
+					SlotPosition = oldPlaylistFile.SlotPosition, // Keep original slot position
+					OrderIndex = oldPlaylistFile.OrderIndex, // Keep original order
+					UserId = currentUser.Id,
+					Notes = new List<string>(), // Start with empty notes
+					IsPrivate = project.IsPrivate,
+					CreatedAt = DateTime.UtcNow
+				};
 
-					// Create new playlist entry in database
-					var newPlaylistFile = new PlaylistModel
-					{
-						ProjectId = project.ProjectId,
-						FileName = newFileName,
-						FilePath = newFilePath,
-						SlotPosition = oldPlaylistFile.SlotPosition, // Keep original slot position
-						OrderIndex = oldPlaylistFile.OrderIndex, // Keep original order
-						UserId = currentUser.Id,
-						Notes = new List<string>(), // Start with empty notes
-						IsPrivate = project.IsPrivate,
-						CreatedAt = DateTime.UtcNow
-					};
-
-					await _mongoService.CreatePlaylistAsync(newPlaylistFile);
-					filesApplied++;
-				}
-				else
-				{
-				}
+				await _mongoService.CreatePlaylistAsync(newPlaylistFile);
+				filesApplied++;
 			}
 
 			var successMessage = "Playlist processed successfully!";

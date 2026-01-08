@@ -293,7 +293,12 @@ public partial class SequencePage : ContentPage
 		
 		try
 		{
-			string downloadsPath = PathHelper.GetProcessedFilesPath();
+			// Save to user's Downloads folder
+			string downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+			if (!Directory.Exists(downloadsPath))
+			{
+				Directory.CreateDirectory(downloadsPath);
+			}
 			
 			// Determine output filename
 			string outputFileName;
@@ -349,42 +354,7 @@ public partial class SequencePage : ContentPage
 					await _mongoService.CreateExportHistoryAsync(exportHistory);
 				}
 
-				// CLEANUP: Delete all unmerged playlist files and project details
-				foreach (var item in selectedPlaylists)
-				{
-					try
-					{
-						// Get playlist items before deletion so we can delete physical files
-						var playlistItems = await _mongoService.GetProjectPlaylistsAsync(item.ProjectId);
-						
-						// Delete all playlist files for this project from database
-						await _mongoService.DeleteProjectPlaylistsAsync(item.ProjectId);
-						
-						// Delete the project itself from database
-						await _mongoService.DeleteProjectAsync(item.Project.Id);
-						
-						// Delete physical files from disk
-						foreach (var playlistItem in playlistItems)
-						{
-							try
-							{
-								if (File.Exists(playlistItem.FilePath))
-								{
-									File.Delete(playlistItem.FilePath);
-								}
-							}
-							catch (Exception fileEx)
-							{
-								System.Diagnostics.Debug.WriteLine($"Could not delete file {playlistItem.FilePath}: {fileEx.Message}");
-							}
-						}
-					}
-					catch (Exception cleanupEx)
-					{
-						System.Diagnostics.Debug.WriteLine($"Cleanup error for project {item.ProjectId}: {cleanupEx.Message}");
-						// Continue with other cleanups even if one fails
-					}
-				}
+				// Playlists and file addresses are preserved - no cleanup performed
 
 				await NotificationService.ShowSuccess($"Video rendering completed!\nSaved to: {outputFilePath}\nCheck the Downloads tab.");
 			}

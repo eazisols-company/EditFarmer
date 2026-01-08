@@ -196,8 +196,6 @@ public partial class LoginPage : ContentPage
         }
         catch (Exception ex)
         {
-        catch (Exception ex)
-        {
             await NotificationService.ShowError($"Admin login failed: {ex.Message}");
         }
     }

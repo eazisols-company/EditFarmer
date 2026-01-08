@@ -245,9 +245,21 @@ namespace CarrotDownload.Database
             return await _projects.Find(p => p.UserId == userId).ToListAsync();
         }
 
+        public async Task<ProjectModel?> GetProjectByIdAsync(string projectId)
+        {
+            return await _projects.Find(p => p.ProjectId == projectId).FirstOrDefaultAsync();
+        }
+
         public async Task DeleteProjectAsync(string projectId)
         {
             await _projects.DeleteOneAsync(p => p.Id == projectId);
+        }
+
+        public async Task UpdateProjectFilesAsync(string projectId, List<string> files)
+        {
+            var filter = Builders<ProjectModel>.Filter.Eq(p => p.ProjectId, projectId);
+            var update = Builders<ProjectModel>.Update.Set(p => p.Files, files);
+            await _projects.UpdateOneAsync(filter, update);
         }
 
         // Playlist Operations

@@ -144,10 +144,19 @@ public partial class DownloadsPage : ContentPage
 		var resolutionLabel = new Label { FontSize = 13, TextColor = Colors.Black, Margin = new Thickness(0, 1) };
 		var durationLabel = new Label { FontSize = 13, TextColor = Colors.Black, Margin = new Thickness(0, 1) };
 		var framerateLabel = new Label { FontSize = 13, TextColor = Colors.Black, Margin = new Thickness(0, 1) };
+		var fileSizeLabel = new Label { FontSize = 13, TextColor = Colors.Black, Margin = new Thickness(0, 1) };
+		var exportedDateLabel = new Label { FontSize = 13, TextColor = Color.FromArgb("#666"), Margin = new Thickness(0, 5, 0, 0) };
+
+		// Set exported date immediately
+		exportedDateLabel.FormattedText = new FormattedString();
+		exportedDateLabel.FormattedText.Spans.Add(new Span { Text = "Exported: ", FontAttributes = FontAttributes.Bold });
+		exportedDateLabel.FormattedText.Spans.Add(new Span { Text = export.ExportedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm") });
 
 		contentLayout.Children.Add(resolutionLabel);
 		contentLayout.Children.Add(durationLabel);
 		contentLayout.Children.Add(framerateLabel);
+		contentLayout.Children.Add(fileSizeLabel);
+		contentLayout.Children.Add(exportedDateLabel);
 
 		// Video Preview Area - Smaller
 		var previewContainer = new Border
@@ -199,6 +208,12 @@ public partial class DownloadsPage : ContentPage
 					var info = await _ffmpegService.GetMediaInfoAsync(export.ZipFilePath);
 					var thumbPath = System.IO.Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid():N}.jpg");
 					var generatedPath = await _ffmpegService.GenerateThumbnailAsync(export.ZipFilePath, thumbPath, TimeSpan.FromSeconds(1));
+					
+					// Get file size
+					var fileInfo = new FileInfo(export.ZipFilePath);
+					string fileSizeText = fileInfo.Length < 1024 * 1024 
+						? $"{fileInfo.Length / 1024.0:F1} KB" 
+						: $"{fileInfo.Length / (1024.0 * 1024.0):F1} MB";
 
 					MainThread.BeginInvokeOnMainThread(() =>
 					{
@@ -206,13 +221,23 @@ public partial class DownloadsPage : ContentPage
 						resolutionLabel.FormattedText.Spans.Add(new Span { Text = "Resolution: ", FontAttributes = FontAttributes.Bold });
 						resolutionLabel.FormattedText.Spans.Add(new Span { Text = $"{info.Width}x{info.Height}" });
 
+						// Format duration as HH:MM:SS or MM:SS
+						var duration = info.Duration;
+						string durationText = duration.TotalHours >= 1 
+							? $"{(int)duration.TotalHours:D2}:{duration.Minutes:D2}:{duration.Seconds:D2}" 
+							: $"{duration.Minutes:D2}:{duration.Seconds:D2}";
 						durationLabel.FormattedText = new FormattedString();
 						durationLabel.FormattedText.Spans.Add(new Span { Text = "Duration: ", FontAttributes = FontAttributes.Bold });
-						durationLabel.FormattedText.Spans.Add(new Span { Text = $"{info.Duration.TotalSeconds:F6}" });
+						durationLabel.FormattedText.Spans.Add(new Span { Text = durationText });
 
+						// Framerate is already a double
 						framerateLabel.FormattedText = new FormattedString();
 						framerateLabel.FormattedText.Spans.Add(new Span { Text = "Framerate: ", FontAttributes = FontAttributes.Bold });
-						framerateLabel.FormattedText.Spans.Add(new Span { Text = $"{info.FrameRate}" });
+						framerateLabel.FormattedText.Spans.Add(new Span { Text = $"{info.FrameRate:F2} fps" });
+
+						fileSizeLabel.FormattedText = new FormattedString();
+						fileSizeLabel.FormattedText.Spans.Add(new Span { Text = "File Size: ", FontAttributes = FontAttributes.Bold });
+						fileSizeLabel.FormattedText.Spans.Add(new Span { Text = fileSizeText });
 
 						if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
 						{

@@ -20,7 +20,7 @@ namespace CarrotDownload.Maui.Controls
                 return type switch
                 {
                     NotificationType.Success => "✓",
-                    NotificationType.Error => "✕",
+                    NotificationType.Error => "!",
                     NotificationType.Warning => "⚠",
                     _ => "ℹ"
                 };

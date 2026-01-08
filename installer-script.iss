@@ -3,7 +3,7 @@
 ; High-quality icon (no compression) - EditFarmer branding
 
 #define MyAppName "EditFarmer"
-#define MyAppVersion "1.2"
+#define MyAppVersion "1.3"
 #define MyAppPublisher "Const and Props LLC"
 #define MyAppURL "https://edit-farmer-c57dcf858c81.herokuapp.com"
 #define MyAppExeName "CarrotDownload.Maui.exe"
@@ -75,38 +75,13 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 ; Run the app after installation
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
-[Registry]
-Root: HKCU; Subkey: "Software\{#MyAppPublisher}\{#MyAppName}"; ValueType: string; ValueName: "StoragePath"; ValueData: "{code:GetDataDir}"; Flags: uninsdeletekey
-
 [Code]
-var
-  DataDirPage: TInputDirWizardPage;
-
 function IsDotNetInstalled: Boolean;
 var
   ResultCode: Integer;
 begin
   // Check if .NET 8 Desktop Runtime is installed
   Result := Exec('cmd.exe', '/c dotnet --list-runtimes 2>nul | findstr "Microsoft.WindowsDesktop.App 8."', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
-end;
-
-procedure InitializeWizard;
-begin
-  // Create custom page for Data Storage
-  DataDirPage := CreateInputDirPage(wpSelectDir,
-    'Select Media Storage Location', 'Where should uploaded videos and projects be stored?',
-    'Select the folder where EditFarmer will store your project files and uploaded videos.' + #13#10 + #13#10 +
-    'The installer will create this folder if it doesn''t exist.',
-    False, '');
-  DataDirPage.Add('Storage Path:');
-  
-  // Default to User Documents\Edit Farmer
-  DataDirPage.Values[0] := ExpandConstant('{userdocs}\EditFarmer');
-end;
-
-function GetDataDir(Param: String): String;
-begin
-  Result := DataDirPage.Values[0];
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -128,8 +103,5 @@ begin
         MsgBox('Failed to automatically install .NET 8 Desktop Runtime.' + #13#10 +
                'Please install it manually to use this application.', mbError, MB_OK);
       end;
-      // Note: We don't check ResultCode for success here to avoid prompting the user on failure, 
-      // but strictly speaking, if it fails, the app might not run (if not self-contained).
-      // Since we are forcing a Self-Contained build anyway, this is a safety net.
   end;
 end;

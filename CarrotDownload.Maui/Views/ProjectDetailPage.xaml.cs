@@ -11,7 +11,7 @@ public partial class ProjectDetailPage : ContentPage
 	private readonly CarrotDownload.FFmpeg.Interfaces.IFFmpegService _ffmpegService;
 	private string _projectId;
 	private string _projectTitle;
-	private string _storagePath;
+
 
 	public ObservableCollection<ProjectFileModel> ProjectFiles { get; set; } = new();
 	public ObservableCollection<ProjectFileModel> PlaylistFiles { get; set; } = new(); // Temporary before upload
@@ -43,17 +43,14 @@ public partial class ProjectDetailPage : ContentPage
 		}
 	}
 
-	public void LoadProject(string projectId, string projectTitle, string storagePath)
+	public void LoadProject(string projectId, string projectTitle)
 	{
 		_projectId = projectId;
 		_projectTitle = projectTitle;
-		_storagePath = storagePath;
 
 		ProjectTitleLabel.Text = $"Project: {projectTitle}";
 
 		// Data loading is now handled in OnAppearing to ensure refresh on return
-		// LoadProjectFiles();
-		// await LoadPlaylistsFromDatabase();
 	}
 
 	private async Task LoadPlaylistsFromDatabase()
@@ -135,17 +132,18 @@ public partial class ProjectDetailPage : ContentPage
 		{
 			ProjectFiles.Clear();
 
-			if (!string.IsNullOrEmpty(_storagePath) && Directory.Exists(_storagePath))
+			// Get project from database to retrieve the file list
+			var project = await _mongoService.GetProjectByIdAsync(_projectId);
+			if (project != null && project.Files != null && project.Files.Any())
 			{
-				var files = Directory.GetFiles(_storagePath);
 				int index = 1;
-				foreach (var file in files)
+				foreach (var filePath in project.Files)
 				{
 					var newFile = new ProjectFileModel
 					{
 						Index = index++,
-						FileName = Path.GetFileName(file),
-						FilePath = file
+						FileName = Path.GetFileName(filePath),
+						FilePath = filePath
 					};
 					ProjectFiles.Add(newFile);
 
@@ -337,24 +335,7 @@ public partial class ProjectDetailPage : ContentPage
 			int uploadCount = 0;
 			foreach (var tempFile in TempFiles.ToList())
 			{
-				var filePath = tempFile.FilePath;
-				var fileName = Path.GetFileName(filePath);
-				
-				// Generate unique filename if exists
-				string fullPath = Path.Combine(_storagePath, fileName);
-				string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
-				string extension = Path.GetExtension(fileName);
-				int count = 1;
-
-				while (File.Exists(fullPath))
-				{
-					string newName = $"{fileNameWithoutExt}({count}){extension}";
-					fullPath = Path.Combine(_storagePath, newName);
-					count++;
-				}
-
-				// Copy file
-				File.Copy(filePath, fullPath);
+				// Store original file path - no copying
 				uploadCount++;
 				
 				// Remove from temp list
@@ -368,11 +349,11 @@ public partial class ProjectDetailPage : ContentPage
 			// Reload files to show new files
 			await LoadProjectFiles();
 			
-			await NotificationService.ShowSuccess($"{uploadCount} files uploaded successfully!");
+			await NotificationService.ShowSuccess($"{uploadCount} files added successfully!");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Error uploading files: {ex.Message}");
+			await NotificationService.ShowError($"Error adding files: {ex.Message}");
 		}
 	}
 
@@ -382,27 +363,27 @@ public partial class ProjectDetailPage : ContentPage
 		{
 			try
 			{
-				var dialog = new ConfirmationDialog("Delete File", 
-					$"Are you sure you want to delete '{file.FileName}'?", 
-					"Delete", "Cancel");
+				var dialog = new ConfirmationDialog("Remove File", 
+					$"Are you sure you want to remove '{file.FileName}' from the project?", 
+					"Remove", "Cancel");
 				await Navigation.PushModalAsync(dialog);
 				
 				if (!await dialog.GetResultAsync()) return;
 
-				// Delete file from disk
-				if (File.Exists(file.FilePath))
-				{
-					File.Delete(file.FilePath);
-				}
+				// Do NOT delete physical file - just remove from project
+				// if (File.Exists(file.FilePath))
+				// {
+				// 	File.Delete(file.FilePath);
+				// }
 
 				// Reload files
 				LoadProjectFiles();
 
-				await NotificationService.ShowSuccess($"File '{file.FileName}' deleted successfully");
+				await NotificationService.ShowSuccess($"File '{file.FileName}' removed from project");
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Failed to delete file: {ex.Message}");
+				await NotificationService.ShowError($"Failed to remove file: {ex.Message}");
 			}
 		}
 	}
@@ -512,40 +493,17 @@ public partial class ProjectDetailPage : ContentPage
 		
 		try
 		{
-			// Automatic slot assignment disabled as per user request
-			// char nextSlot = 'a';
-			// ... logic removed ...
-
-			// Create playlist folder inside project folder if not exists
-			var playlistFolder = Path.Combine(_storagePath, "Playlists");
-			if (!Directory.Exists(playlistFolder))
-			{
-				Directory.CreateDirectory(playlistFolder);
-			}
-
+			// Get current project to update its Files list
+			var project = await _mongoService.GetProjectByIdAsync(_projectId);
+			var projectFiles = project?.Files?.ToList() ?? new List<string>();
+			
 			// Add selected files to permanent playlist (FinalizedPlaylistFiles) and save to database
+			// Using original file paths - no file copying
 			foreach (var file in _selectedFiles)
 			{
 				var fileName = Path.GetFileName(file.FilePath);
-				var destinationPath = Path.Combine(playlistFolder, fileName);
 				
-				// Copy file to Playlists folder
-				if (File.Exists(file.FilePath))
-				{
-					File.Copy(file.FilePath, destinationPath, overwrite: true);
-					
-					// Delete original file after copy (Move operation)
-					try
-					{
-						File.Delete(file.FilePath);
-					}
-					catch (Exception ex)
-					{
-						Console.WriteLine($"[Warning] Failed to delete source file {file.FilePath}: {ex.Message}");
-					}
-				}
-
-				// Check if already in playlist (using destination path or filename check)
+				// Check if already in playlist (using filename check)
 				if (!FinalizedPlaylistFiles.Any(p => p.FileName == fileName))
 				{
 					// Use Index starting from 1. Slot is left empty by default.
@@ -553,7 +511,7 @@ public partial class ProjectDetailPage : ContentPage
 					{
 						Index = FinalizedPlaylistFiles.Count + 1,
 						FileName = fileName,
-						FilePath = destinationPath, // Use the new path in Playlists folder
+						FilePath = file.FilePath, // Use original file path
 						SlotPosition = -1,
 						SlotLetter = "" 
 					};
@@ -568,7 +526,7 @@ public partial class ProjectDetailPage : ContentPage
 						{
 							ProjectId = _projectId,
 							FileName = fileName,
-							FilePath = destinationPath, // Use the new path
+							FilePath = file.FilePath, // Use original file path
 							SlotPosition = "", // No default slot
 							OrderIndex = playlistFile.Index, // Store 1-based index (matches UI)
 							UserId = currentUser.Id,
@@ -577,11 +535,17 @@ public partial class ProjectDetailPage : ContentPage
 						
 						await _mongoService.CreatePlaylistAsync(playlistModel);
 					}
+					
+					// Remove from project's Files list in database
+					projectFiles.Remove(file.FilePath);
 				}
 				
 				// Remove from project files UI
 				ProjectFiles.Remove(file);
 			}
+			
+			// Update project's Files list in database
+			await _mongoService.UpdateProjectFilesAsync(_projectId, projectFiles);
 			
 			await NotificationService.ShowSuccess("Files added to playlist successfully!");
 			
@@ -763,26 +727,17 @@ public partial class ProjectDetailPage : ContentPage
 				}
 			}
 
-			// Create playlist folder inside project folder
-			var playlistFolder = Path.Combine(_storagePath, "Playlists");
-			if (!Directory.Exists(playlistFolder))
-			{
-				Directory.CreateDirectory(playlistFolder);
-			}
-
-			// Copy all playlist files and save to database
+			// Save all playlist files to database using original paths - no file copying
 			foreach (var file in PlaylistFiles)
 			{
 				var fileName = Path.GetFileName(file.FilePath);
-				var destinationPath = Path.Combine(playlistFolder, fileName);
-				File.Copy(file.FilePath, destinationPath, overwrite: true);
 
 				// Create playlist model for database
 				var playlistModel = new CarrotDownload.Database.Models.PlaylistModel
 				{
 					ProjectId = _projectId,
 					FileName = fileName,
-					FilePath = destinationPath,
+					FilePath = file.FilePath, // Use original file path
 					SlotPosition = file.SlotLetter,
 					OrderIndex = FinalizedPlaylistFiles.Count + 1, // 1-based: next sequence number
 					IsPrivate = true, // You can get this from the dialog
@@ -797,7 +752,7 @@ public partial class ProjectDetailPage : ContentPage
 				{
 					Index = FinalizedPlaylistFiles.Count + 1,
 					FileName = fileName,
-					FilePath = destinationPath,
+					FilePath = file.FilePath, // Use original file path
 					SlotPosition = file.SlotPosition,
 					SlotLetter = file.SlotLetter
 				});
