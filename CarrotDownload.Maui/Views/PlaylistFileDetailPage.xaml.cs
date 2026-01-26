@@ -2,6 +2,7 @@ using CarrotDownload.Auth.Interfaces;
 using CarrotDownload.Database;
 
 using CarrotDownload.Maui.Services;
+using System.Linq;
 
 namespace CarrotDownload.Maui.Views;
 
@@ -93,14 +94,14 @@ public partial class PlaylistFileDetailPage : ContentPage
 			}
 			else
 			{
-				await NotificationService.ShowError($"File not found at: {_filePath}");
+				await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
 			}
 		}
 		catch (Exception ex)
 		{
 			Console.WriteLine($"[DEBUG] Error playing file: {ex.Message}");
 			Console.WriteLine($"[DEBUG] Stack trace: {ex.StackTrace}");
-			await NotificationService.ShowError($"Could not play file: {ex.Message}");
+			await NotificationService.ShowError("We couldn't play that file. Please check that it exists.");
 		}
 	}
 	
@@ -119,7 +120,7 @@ public partial class PlaylistFileDetailPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to open notes: {ex.Message}");
+			await NotificationService.ShowError("We couldn't open the notes. Please try again.");
 		}
 	}
 	
@@ -127,11 +128,18 @@ public partial class PlaylistFileDetailPage : ContentPage
 	{
 		try
 		{
-			var slot = SlotPositionEntry.Text?.Trim().ToLower() ?? "";
+			var slotOriginal = SlotPositionEntry.Text?.Trim() ?? "";
+			// Check for uppercase letters
+			if (!string.IsNullOrEmpty(slotOriginal) && slotOriginal.Any(char.IsUpper))
+			{
+				await NotificationService.ShowError("Please use lowercase letters (a-z) for slots. Capital letters aren't allowed.");
+				return;
+			}
+			var slot = slotOriginal.ToLower();
 			
 			if (string.IsNullOrEmpty(slot) || slot.Length != 1 || slot[0] < 'a' || slot[0] > 'z')
 			{
-				await NotificationService.ShowError("Slot must be a single letter from a to z");
+				await NotificationService.ShowError("Slots should be a single letter from a to z.");
 				return;
 			}
 			
@@ -143,16 +151,16 @@ public partial class PlaylistFileDetailPage : ContentPage
 			
 			if (duplicateSlot != null)
 			{
-				await NotificationService.ShowError($"Slot '{slot.ToUpper()}' is already used by file '{duplicateSlot.FileName}'. Please choose a different slot.");
+				await NotificationService.ShowError($"Slot '{slot.ToUpper()}' is already taken by '{duplicateSlot.FileName}'. Please choose a different one.");
 				return;
 			}
 			
 			await _mongoService.UpdatePlaylistSlotAsync(_playlistId, slot);
-			await NotificationService.ShowSuccess("Slot position saved successfully!");
+			await NotificationService.ShowSuccess("Your slot position has been saved successfully!");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to save slot: {ex.Message}");
+			await NotificationService.ShowError("We couldn't save the slot position. Please try again.");
 		}
 	}
 	
@@ -162,7 +170,7 @@ public partial class PlaylistFileDetailPage : ContentPage
 		{
 			if (!File.Exists(_filePath))
 			{
-				await NotificationService.ShowError("File not found.");
+				await NotificationService.ShowError("We couldn't find that file.");
 				return;
 			}
 
@@ -190,16 +198,16 @@ public partial class PlaylistFileDetailPage : ContentPage
 			if (File.Exists(_filePath))
 			{
 				File.Copy(_filePath, fullPath);
-				await NotificationService.ShowSuccess("File downloaded successfully!");
+				await NotificationService.ShowSuccess("Success! Your file has been downloaded.");
 			}
 			else
 			{
-				await NotificationService.ShowError("Source file not found");
+				await NotificationService.ShowError("We couldn't find the source file.");
 			}
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to download file: {ex.Message}");
+			await NotificationService.ShowError("We couldn't download that file. Please try again.");
 		}
 	}
 	
@@ -211,21 +219,16 @@ public partial class PlaylistFileDetailPage : ContentPage
 		
 		try
 		{
-			// Delete from database
+			// CRITICAL: Delete from database ONLY - NEVER delete user's original files from disk
+			// Files are stored at their original locations and must remain untouched
 			await _mongoService.DeletePlaylistByIdAsync(_playlistId);
 			
-			// Delete physical file
-			if (File.Exists(_filePath))
-			{
-				File.Delete(_filePath);
-			}
-			
-			await NotificationService.ShowSuccess("File deleted successfully");
+			await NotificationService.ShowSuccess("The file has been removed from the playlist successfully!");
 			await Navigation.PopAsync();
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to delete file: {ex.Message}");
+			await NotificationService.ShowError("We couldn't remove that file. Please try again.");
 		}
 	}
 }

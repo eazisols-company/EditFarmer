@@ -1,5 +1,7 @@
 using CarrotDownload.Maui.Views;
 
+using CarrotDownload.Maui.Services;
+
 namespace CarrotDownload.Maui.Controls;
 
 public partial class Footer : ContentView
@@ -13,9 +15,8 @@ public partial class Footer : ContentView
 
 	private void LoadAccentColor()
 	{
-		// Load accent color from preferences
-		var accentColor = Preferences.Get("AccentColor", "#ff5722");
-		ApplyAccentColor(accentColor);
+		// Load accent color from session (defaults to white each app launch)
+		ApplyAccentColor(AccentColorSession.CurrentColor);
 	}
 
 	private void SubscribeToAccentColorChanges()

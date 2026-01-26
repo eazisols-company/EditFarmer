@@ -1,12 +1,19 @@
 using Microsoft.Maui.Controls;
 using CarrotDownload.Database;
 using CarrotDownload.Auth.Interfaces;
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Compression;
 using CarrotDownload.Database.Models;
 using CarrotDownload.Maui.Services;
 using CarrotDownload.Maui.Helpers;
+using Microsoft.Maui.Storage;
+using CommunityToolkit.Maui.Storage;
+#if WINDOWS
+using WinRT.Interop;
+using Microsoft.UI.Xaml;
+#endif
 
 namespace CarrotDownload.Maui.Views;
 
@@ -79,7 +86,7 @@ public partial class SequencePage : ContentPage
 				var checkboxContainer = new HorizontalStackLayout
 				{
 					Spacing = 10,
-					Padding = new Thickness(0, 5)
+					Padding = new Microsoft.Maui.Thickness(0, 5)
 				};
 				
 				var checkbox = new CheckBox
@@ -117,7 +124,7 @@ public partial class SequencePage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load playlists: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your playlists. Please try again.");
 		}
 	}
 	
@@ -189,7 +196,7 @@ public partial class SequencePage : ContentPage
 					Text = $"• {displayText}",
 					FontSize = 14,
 					TextColor = Color.FromArgb("#856404"),
-					Margin = new Thickness(10, 0, 0, 0)
+					Margin = new Microsoft.Maui.Thickness(10, 0, 0, 0)
 				};
 				
 				ProcessingQueueList.Children.Add(itemLabel);
@@ -209,23 +216,23 @@ public partial class SequencePage : ContentPage
 		if (alreadyProcessing.Any())
 		{
 			string playlistNames = string.Join(", ", alreadyProcessing.Select(p => p.ProjectTitle));
-			await NotificationService.ShowWarning($"The following playlist(s) are already being processed:\n{playlistNames}");
+			await NotificationService.ShowWarning($"These playlists are already being processed:\n{playlistNames}");
 			return;
 		}
 		
 		// Check if another process is currently running
 		if (_isProcessing)
 		{
-			await NotificationService.ShowWarning("Another playlist is currently being processed. Please wait for it to complete.");
+			await NotificationService.ShowWarning("Another playlist is currently processing. Please wait for it to finish.");
 			return;
 		}
 		
-		// Prepare preview of files to be rendered
+		// Prepare preview of files to be rendered - ONE VIDEO PER PLAYLIST
 		var previewMessage = new System.Text.StringBuilder();
-		previewMessage.AppendLine("The following files will be merged into a SINGLE video in this order:\n");
+		previewMessage.AppendLine($"The following {selectedPlaylists.Count} playlist(s) will each be rendered as separate videos:\n");
 		
-		// Master list of all files to render in order
-		var allFilesToRender = new List<string>();
+		// Map each playlist to its files
+		var playlistFilesMap = new Dictionary<string, List<string>>();
 
 		foreach (var item in selectedPlaylists)
 		{
@@ -258,25 +265,70 @@ public partial class SequencePage : ContentPage
 			}
 			else
 			{
-				allFilesToRender.AddRange(projectFiles);
+				playlistFilesMap[item.ProjectId] = projectFiles;
 			}
 			
 			previewMessage.AppendLine();
 		}
 
-		if (!allFilesToRender.Any())
+		if (!playlistFilesMap.Any() || !playlistFilesMap.Values.Any(l => l.Any()))
 		{
-			await NotificationService.ShowWarning("No valid files found in selected playlists.");
+			await NotificationService.ShowWarning("We couldn't find any files in those playlists. Please add some files first.");
 			return;
 		}
 
 		// Confirm render with DETAILED list
-		var dialog = new ConfirmationDialog("Confirm Merged Video", 
+		var dialog = new ConfirmationDialog("Confirm Video Rendering", 
 			previewMessage.ToString(), 
 			"Start Render", "Cancel");
 		await Navigation.PushModalAsync(dialog);
 			
 		if (!await dialog.GetResultAsync()) return;
+
+		// Let the user choose where to save the rendered videos
+		string selectedFolderPath = null;
+
+#if WINDOWS
+		try
+		{
+			var folderPicker = new Windows.Storage.Pickers.FolderPicker();
+			folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Downloads;
+			folderPicker.FileTypeFilter.Add("*");
+			
+			// Initialize with window handle (required for desktop apps)
+			var window = App.Current.Windows.FirstOrDefault();
+			if (window != null && window.Handler?.PlatformView is Microsoft.UI.Xaml.Window platformWindow)
+			{
+				var windowHandle = GetWindowHandle(platformWindow);
+				InitializeWithWindow.Initialize(folderPicker, windowHandle);
+			}
+			
+			var folder = await folderPicker.PickSingleFolderAsync();
+			
+			if (folder != null)
+			{
+				selectedFolderPath = folder.Path;
+			}
+			else
+			{
+				await NotificationService.ShowInfo("Rendering cancelled. Please select a folder to continue.");
+				return;
+			}
+		}
+		catch (Exception folderPickerEx)
+		{
+			await NotificationService.ShowError("We couldn't open the folder picker. Please try again.");
+			return;
+		}
+#else
+		// Fallback for non-Windows platforms - use Downloads folder
+		string downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+		if (!Directory.Exists(downloadsPath))
+		{
+			Directory.CreateDirectory(downloadsPath);
+		}
+		selectedFolderPath = downloadsPath;
+#endif
 
 		// Mark as processing and add to queue
 		_isProcessing = true;
@@ -288,32 +340,36 @@ public partial class SequencePage : ContentPage
 		await LoadPlaylists(); // Refresh to show disabled checkboxes
 
 		// Show loading indicator
-		SuccessMessageLabel.Text = "Rendering merged video... Please wait.";
+		SuccessMessageLabel.Text = $"Rendering {selectedPlaylists.Count} video(s)... Please wait.";
 		SuccessMessageBorder.IsVisible = true;
 		
 		try
 		{
-			// Save to user's Downloads folder
-			string downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-			if (!Directory.Exists(downloadsPath))
+			// Ensure selected folder exists
+			if (!Directory.Exists(selectedFolderPath))
 			{
-				Directory.CreateDirectory(downloadsPath);
+				Directory.CreateDirectory(selectedFolderPath);
 			}
 			
-			// Determine output filename
-			string outputFileName;
-			if (selectedPlaylists.Count == 1)
+			var currentUser = await _authService.GetCurrentUserAsync();
+			int successCount = 0;
+			int failCount = 0;
+
+			// Render EACH playlist separately
+			foreach (var playlistItem in selectedPlaylists)
 			{
-				outputFileName = $"{selectedPlaylists[0].ProjectTitle}_Final_{DateTime.Now:yyyyMMdd_HHmm}.mp4";
+				if (!playlistFilesMap.ContainsKey(playlistItem.ProjectId) || !playlistFilesMap[playlistItem.ProjectId].Any())
+				{
+					await NotificationService.ShowWarning($"Skipping '{playlistItem.ProjectTitle}' - no files found to render.");
+					continue;
 			}
-			else
-			{
-				outputFileName = $"Merged_Playlists_{DateTime.Now:yyyyMMdd_HHmm}.mp4";
-			}
-			
-				// Sanitize filename
+
+				var filesToRender = playlistFilesMap[playlistItem.ProjectId];
+				
+				// Generate unique filename for this playlist
+				string outputFileName = $"{playlistItem.ProjectTitle}_Final_{DateTime.Now:yyyyMMdd_HHmm}.mp4";
 				outputFileName = string.Join("_", outputFileName.Split(Path.GetInvalidFileNameChars()));
-				string outputFilePath = Path.Combine(downloadsPath, outputFileName);
+				string outputFilePath = Path.Combine(selectedFolderPath, outputFileName);
 				
 				// Ensure unique filename
 				int counter = 1;
@@ -323,50 +379,64 @@ public partial class SequencePage : ContentPage
 				while (File.Exists(outputFilePath))
 				{
 					string newName = $"{fileNameWithoutExt}_{counter}{ext}";
-					outputFilePath = Path.Combine(downloadsPath, newName);
-					outputFileName = newName; // Update for history
+					outputFilePath = Path.Combine(selectedFolderPath, newName);
+					outputFileName = newName;
 					counter++;
 				}
 
-			SuccessMessageLabel.Text = $"Merging {allFilesToRender.Count} files into '{outputFileName}'...";
+				SuccessMessageLabel.Text = $"Rendering '{playlistItem.ProjectTitle}' ({filesToRender.Count} files)...";
 
-			// Run concatenation ONCE for all files
-			var result = await _ffmpegService.ConcatenateMediaAsync(allFilesToRender, outputFilePath);
-
-			// Final status
-			SuccessMessageBorder.IsVisible = false;
+				// Render this playlist's files
+				var result = await _ffmpegService.ConcatenateMediaAsync(filesToRender, outputFilePath);
 
 			if (result.Success)
 			{
 				// Save to Export History so it appears in Downloads tab
-				var currentUser = await _authService.GetCurrentUserAsync();
 				if (currentUser != null)
 				{
 					var exportHistory = new CarrotDownload.Database.Models.ExportHistoryModel
 					{
 						UserId = currentUser.Id,
-						ZipFileName = outputFileName, // Storing MP4 name here
-						ZipFilePath = outputFilePath, // Storing MP4 path here
-						ProjectTitles = selectedPlaylists.Select(p => p.ProjectTitle).ToList(),
+							ZipFileName = outputFileName,
+							ZipFilePath = outputFilePath,
+							ProjectTitles = new List<string> { playlistItem.ProjectTitle },
 						TotalFiles = 1,
 						ExportedAt = DateTime.UtcNow
 					};
 					await _mongoService.CreateExportHistoryAsync(exportHistory);
 				}
+					successCount++;
+				}
+				else
+				{
+					failCount++;
+					await NotificationService.ShowError($"We couldn't render '{playlistItem.ProjectTitle}'. Please check the file and try again.");
+				}
+			}
 
-				// Playlists and file addresses are preserved - no cleanup performed
+			// Final status
+			SuccessMessageBorder.IsVisible = false;
 
-				await NotificationService.ShowSuccess($"Video rendering completed!\nSaved to: {outputFilePath}\nCheck the Downloads tab.");
+			if (successCount > 0)
+			{
+				string message = successCount == 1
+					? $"Video rendering completed!\nSaved to:\n{selectedFolderPath}\n\nCheck the Downloads tab."
+					: $"{successCount} video(s) rendered successfully!\nSaved to:\n{selectedFolderPath}\n\nCheck the Downloads tab.";
+				if (failCount > 0)
+				{
+					message += $"\n{failCount} video(s) failed to render.";
+				}
+				await NotificationService.ShowSuccess(message);
 			}
 			else
 			{
-				await NotificationService.ShowError($"Rendering failed: {result.ErrorMessage}");
+				await NotificationService.ShowError("Unfortunately, all video renders failed. Please check your files and try again.");
 			}
 		}
 		catch (Exception ex)
 		{
 			SuccessMessageBorder.IsVisible = false;
-			await NotificationService.ShowError($"Rendering failed: {ex.Message}");
+			await NotificationService.ShowError("The rendering process encountered an error. Please try again.");
 		}
 		finally
 		{
@@ -433,7 +503,7 @@ public partial class SequencePage : ContentPage
 		bool hasAnyFiles = preparedData.Values.Any(l => l.Any());
 		if (!hasAnyFiles)
 		{
-			await NotificationService.ShowWarning("No valid files found to export.");
+			await NotificationService.ShowWarning("We couldn't find any files to export. Please add some files first.");
 			return;
 		}
 
@@ -452,30 +522,15 @@ public partial class SequencePage : ContentPage
 		
 		try 
 		{
-			string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-			string downloadsPath = Path.Combine(userProfile, "Downloads");
-			
+			// Build a suggested ZIP file name (no path yet)
 			string zipFileName = selectedPlaylists.Count == 1 
 				? $"{selectedPlaylists[0].ProjectTitle}_Export_{DateTime.Now:yyyyMMdd_HHmm}.zip"
 				: $"Merged_Playlists_Export_{DateTime.Now:yyyyMMdd_HHmm}.zip";
 			
 			// Sanitize filename
 			zipFileName = string.Join("_", zipFileName.Split(Path.GetInvalidFileNameChars()));
-			string zipFilePath = Path.Combine(downloadsPath, zipFileName);
 			
-			// Ensure unique filename for ZIP
-			int counter = 1;
-			string fileNameWithoutExt = Path.GetFileNameWithoutExtension(zipFileName);
-			string ext = Path.GetExtension(zipFileName);
-			while (File.Exists(zipFilePath))
-			{
-				string newName = $"{fileNameWithoutExt}_{counter}{ext}";
-				zipFilePath = Path.Combine(downloadsPath, newName);
-				zipFileName = newName;
-				counter++;
-			}
-			
-			// Create temp directory for organizing
+			// Create temp directory for organizing files to zip
 			string tempRoot = Path.Combine(FileSystem.CacheDirectory, $"Temp_Zip_{DateTime.Now.Ticks}");
 			Directory.CreateDirectory(tempRoot);
 			
@@ -507,30 +562,179 @@ public partial class SequencePage : ContentPage
 				}
 			}
 
-			// Create Zip if files exist
-			if (totalFilesCopied > 0)
+			if (totalFilesCopied == 0)
 			{
-				ZipFile.CreateFromDirectory(tempRoot, zipFilePath);
-
 				SuccessMessageBorder.IsVisible = false;
-				await NotificationService.ShowSuccess($"Export completed!\nSaved to: {zipFilePath}\nCheck Downloads folder.");
+				await NotificationService.ShowWarning("We couldn't copy any files for export. Please check that the files exist.");
+				// Cleanup Temp
+				try { Directory.Delete(tempRoot, true); } catch { }
+				return;
+			}
+
+			// Create ZIP in a temporary location
+			string tempZipPath = Path.Combine(FileSystem.CacheDirectory, $"Temp_Export_{DateTime.Now.Ticks}.zip");
+			ZipFile.CreateFromDirectory(tempRoot, tempZipPath);
+
+			// Let the user choose where to save the ZIP
+			string selectedFolderPath = null;
+
+#if WINDOWS
+			try
+			{
+				var folderPicker = new Windows.Storage.Pickers.FolderPicker();
+				folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.Downloads;
+				folderPicker.FileTypeFilter.Add("*");
+				
+				// Initialize with window handle (required for desktop apps)
+				var window = App.Current.Windows.FirstOrDefault();
+				if (window != null && window.Handler?.PlatformView is Microsoft.UI.Xaml.Window platformWindow)
+			{
+					var windowHandle = GetWindowHandle(platformWindow);
+					InitializeWithWindow.Initialize(folderPicker, windowHandle);
+				}
+				
+				var folder = await folderPicker.PickSingleFolderAsync();
+				
+				if (folder != null)
+				{
+					selectedFolderPath = folder.Path;
+				}
+				else
+				{
+					SuccessMessageBorder.IsVisible = false;
+					await NotificationService.ShowInfo("Export cancelled. Please select a folder to continue.");
+					// Cleanup Temp
+					try 
+					{ 
+						if (File.Exists(tempZipPath))
+						{
+							File.Delete(tempZipPath);
+						}
+						if (Directory.Exists(tempRoot))
+						{
+							Directory.Delete(tempRoot, true);
+						}
+					} 
+					catch { }
+					return;
+				}
+			}
+			catch (Exception folderPickerEx)
+			{
+				SuccessMessageBorder.IsVisible = false;
+				await NotificationService.ShowError("We couldn't open the folder picker. Please try again.");
+				// Cleanup Temp
+				try 
+				{ 
+					if (File.Exists(tempZipPath))
+					{
+						File.Delete(tempZipPath);
+					}
+					if (Directory.Exists(tempRoot))
+					{
+						Directory.Delete(tempRoot, true);
+					}
+				} 
+				catch { }
+				return;
+			}
+#else
+			// Fallback for non-Windows platforms
+			await using (var zipStream = File.OpenRead(tempZipPath))
+			{
+				var result = await FileSaver.Default.SaveAsync(zipFileName, zipStream);
+				
+				if (result.IsSuccessful)
+				{
+					selectedFolderPath = Path.GetDirectoryName(result.FilePath);
 			}
 			else
 			{
 				SuccessMessageBorder.IsVisible = false;
-				await NotificationService.ShowWarning("No files could be copied for export.");
+					await NotificationService.ShowWarning("The export ZIP was created, but we couldn't save it. Please try again.");
+					// Cleanup Temp
+					try 
+					{ 
+						if (File.Exists(tempZipPath))
+						{
+							File.Delete(tempZipPath);
+						}
+						if (Directory.Exists(tempRoot))
+						{
+							Directory.Delete(tempRoot, true);
+						}
+					} 
+					catch { }
+					return;
+				}
+			}
+#endif
+
+			// Copy ZIP file to selected folder
+			if (!string.IsNullOrEmpty(selectedFolderPath))
+			{
+				try
+				{
+					string destinationPath = Path.Combine(selectedFolderPath, zipFileName);
+					
+					// Handle duplicate filenames
+					int counter = 1;
+					string fileNameWithoutExt = Path.GetFileNameWithoutExtension(zipFileName);
+					string ext = Path.GetExtension(zipFileName);
+					while (File.Exists(destinationPath))
+					{
+						string newName = $"{fileNameWithoutExt}_{counter}{ext}";
+						destinationPath = Path.Combine(selectedFolderPath, newName);
+						counter++;
+					}
+					
+					File.Copy(tempZipPath, destinationPath, overwrite: false);
+					
+					SuccessMessageBorder.IsVisible = false;
+					await NotificationService.ShowSuccess($"Success! Your export is ready at:\n{destinationPath}");
+				}
+				catch (Exception copyEx)
+				{
+					SuccessMessageBorder.IsVisible = false;
+					await NotificationService.ShowError("We couldn't save your ZIP file. Please try again.");
+				}
 			}
 
 			// Cleanup Temp
-			try { Directory.Delete(tempRoot, true); } catch { }
+			try 
+			{ 
+				if (File.Exists(tempZipPath))
+				{
+					File.Delete(tempZipPath);
+				}
+				if (Directory.Exists(tempRoot))
+				{
+					Directory.Delete(tempRoot, true);
+				}
+			} 
+			catch { }
 		}
 		catch (Exception ex)
 		{
 			SuccessMessageBorder.IsVisible = false;
-			await NotificationService.ShowError($"Export failed: {ex.Message}");
+			await NotificationService.ShowError("The export process encountered an error. Please try again.");
 		}
 	}
 
+	
+#if WINDOWS
+	// Helper method to get window handle from WinUI Window using P/Invoke
+	[System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+	private static extern IntPtr GetActiveWindow();
+
+	private static IntPtr GetWindowHandle(Microsoft.UI.Xaml.Window window)
+	{
+		// Use the window's Content property to get the HWND
+		// For WinUI 3, we need to use Microsoft.UI.Win32Interop
+		var hwnd = Microsoft.UI.Win32Interop.GetWindowFromWindowId(window.AppWindow.Id);
+		return hwnd;
+	}
+#endif
 	
 	private class PlaylistCheckboxItem
 	{

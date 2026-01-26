@@ -1,6 +1,9 @@
 using CarrotDownload.Auth.Interfaces;
 using System.Collections.ObjectModel;
 using CarrotDownload.Maui.Services;
+using System.Linq;
+using Microsoft.Maui.Controls;
+using CarrotDownload.Maui.Controls;
 
 namespace CarrotDownload.Maui.Views;
 
@@ -9,6 +12,10 @@ public partial class ProjectDetailPage : ContentPage
 	private readonly IAuthService _authService;
 	private readonly CarrotDownload.Database.CarrotMongoService _mongoService;
 	private readonly CarrotDownload.FFmpeg.Interfaces.IFFmpegService _ffmpegService;
+	private static readonly HashSet<string> _allowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+	{
+		".mp3", ".wav", ".mp4", ".mkv", ".avi", ".mov", ".flac", ".aac"
+	};
 	private string _projectId;
 	private string _projectTitle;
 
@@ -121,7 +128,7 @@ public partial class ProjectDetailPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load playlists: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your playlists. Please try again.");
 		}
 	}
 
@@ -157,7 +164,7 @@ public partial class ProjectDetailPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load project files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your project files. Please try again.");
 		}
 	}
 
@@ -187,7 +194,7 @@ public partial class ProjectDetailPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Error selecting files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't select those files. Please try again.");
 		}
 	}
 
@@ -261,7 +268,7 @@ public partial class ProjectDetailPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Error dropping files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't add those files. Please try again.");
 		}
 	}
 
@@ -326,20 +333,33 @@ public partial class ProjectDetailPage : ContentPage
 	{
 		if (TempFiles.Count == 0)
 		{
-			await NotificationService.ShowInfo("No files selected");
+			await NotificationService.ShowInfo("Please select at least one file to continue.");
 			return;
 		}
 		
 		try
 		{
+			// Get current project to update its Files list
+			var project = await _mongoService.GetProjectByIdAsync(_projectId);
+			var projectFiles = project?.Files?.ToList() ?? new List<string>();
+
 			int uploadCount = 0;
 			foreach (var tempFile in TempFiles.ToList())
 			{
 				// Store original file path - no copying
+				// Allow duplicates: every upload should create a visible entry.
+				projectFiles.Add(tempFile.FilePath);
 				uploadCount++;
 				
 				// Remove from temp list
 				TempFiles.Remove(tempFile);
+			}
+			
+			// Update project's Files list in database if changes were made
+			if (uploadCount > 0)
+			{
+				await _mongoService.UpdateProjectFilesAsync(_projectId, projectFiles);
+				await NotificationService.ShowSuccess($"Great! {uploadCount} file(s) have been added to your project.");
 			}
 			
 			// Clear UI
@@ -348,12 +368,10 @@ public partial class ProjectDetailPage : ContentPage
 			
 			// Reload files to show new files
 			await LoadProjectFiles();
-			
-			await NotificationService.ShowSuccess($"{uploadCount} files added successfully!");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Error adding files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't add those files. Please try again.");
 		}
 	}
 
@@ -370,20 +388,27 @@ public partial class ProjectDetailPage : ContentPage
 				
 				if (!await dialog.GetResultAsync()) return;
 
-				// Do NOT delete physical file - just remove from project
-				// if (File.Exists(file.FilePath))
-				// {
-				// 	File.Delete(file.FilePath);
-				// }
+				// CRITICAL: Do NOT delete physical file - just remove from project
+				// Files are stored at their original locations and must remain untouched
+				// Only update the project's Files list in the database
+				var project = await _mongoService.GetProjectByIdAsync(_projectId);
+				if (project != null && project.Files != null)
+				{
+					var updatedFiles = project.Files
+						.Where(path => !string.Equals(path, file.FilePath, StringComparison.OrdinalIgnoreCase))
+						.ToList();
+
+					await _mongoService.UpdateProjectFilesAsync(_projectId, updatedFiles);
+				}
 
 				// Reload files
 				LoadProjectFiles();
 
-				await NotificationService.ShowSuccess($"File '{file.FileName}' removed from project");
+				await NotificationService.ShowSuccess($"'{file.FileName}' has been removed from your project.");
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Failed to remove file: {ex.Message}");
+				await NotificationService.ShowError("We couldn't remove that file. Please try again.");
 			}
 		}
 	}
@@ -406,7 +431,7 @@ public partial class ProjectDetailPage : ContentPage
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Could not play file: {ex.Message}");
+				await NotificationService.ShowError("We couldn't play that file. Please make sure it exists.");
 			}
 		}
 	}
@@ -441,12 +466,12 @@ public partial class ProjectDetailPage : ContentPage
 				}
 				else
 				{
-					await NotificationService.ShowError("Playlist file not found in database");
+					await NotificationService.ShowError("We couldn't find that playlist file. It may have been removed.");
 				}
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Failed to open file details: {ex.Message}");
+				await NotificationService.ShowError("We couldn't open those file details. Please try again.");
 			}
 		}
 	}
@@ -454,27 +479,20 @@ public partial class ProjectDetailPage : ContentPage
 	// File selection handler (double-click)
 	private void OnFileDoubleClicked(object sender, TappedEventArgs e)
 	{
-		if (e.Parameter is ProjectFileModel file && sender is Border border)
+		if (e.Parameter is ProjectFileModel file)
 		{
 			// Toggle selection
 			if (_selectedFiles.Contains(file))
 			{
 				// Deselect
 				_selectedFiles.Remove(file);
-				border.Stroke = Color.FromArgb("#e0e0e0");
-				border.Shadow = null;
+				file.IsSelected = false;
 			}
 			else
 			{
-				// Select with green shadow
+				// Select
 				_selectedFiles.Add(file);
-				border.Stroke = Color.FromArgb("#28a745");
-				border.Shadow = new Shadow
-				{
-					Brush = new SolidColorBrush(Color.FromArgb("#28a745")),
-					Radius = 8,
-					Opacity = 0.5f
-				};
+				file.IsSelected = true;
 			}
 			
 			// Show/hide Add to Playlist button
@@ -487,75 +505,70 @@ public partial class ProjectDetailPage : ContentPage
 	{
 		if (!_selectedFiles.Any())
 		{
-			await NotificationService.ShowInfo("No files selected");
+			await NotificationService.ShowInfo("Please select at least one file to continue.");
 			return;
 		}
 		
 		try
 		{
-			// Get current project to update its Files list
+			// Get current project so we can reference its existing file list if needed.
+			// NOTE: We no longer remove files from the project's library when adding
+			// them to a playlist; project files should persist.
 			var project = await _mongoService.GetProjectByIdAsync(_projectId);
-			var projectFiles = project?.Files?.ToList() ?? new List<string>();
-			
+
 			// Add selected files to permanent playlist (FinalizedPlaylistFiles) and save to database
 			// Using original file paths - no file copying
 			foreach (var file in _selectedFiles)
 			{
 				var fileName = Path.GetFileName(file.FilePath);
 				
-				// Check if already in playlist (using filename check)
-				if (!FinalizedPlaylistFiles.Any(p => p.FileName == fileName))
+				// Allow duplicates: adding the same file again should create another playlist entry.
+				// Use Index starting from 1. Slot is left empty by default.
+				var playlistFile = new ProjectFileModel
 				{
-					// Use Index starting from 1. Slot is left empty by default.
-					var playlistFile = new ProjectFileModel
+					Index = FinalizedPlaylistFiles.Count + 1,
+					FileName = fileName,
+					FilePath = file.FilePath, // Use original file path
+					SlotPosition = -1,
+					SlotLetter = "" 
+				};
+				
+				FinalizedPlaylistFiles.Add(playlistFile);
+
+				// Save to database immediately
+				var currentUser = await _authService.GetCurrentUserAsync();
+				if (currentUser != null)
+				{
+					var playlistModel = new CarrotDownload.Database.Models.PlaylistModel
 					{
-						Index = FinalizedPlaylistFiles.Count + 1,
+						ProjectId = _projectId,
 						FileName = fileName,
 						FilePath = file.FilePath, // Use original file path
-						SlotPosition = -1,
-						SlotLetter = "" 
+						SlotPosition = "", // No default slot
+						OrderIndex = playlistFile.Index, // Store 1-based index (matches UI)
+						UserId = currentUser.Id,
+						CreatedAt = DateTime.UtcNow
 					};
 					
-					FinalizedPlaylistFiles.Add(playlistFile);
-					
-					// Save to database immediately
-					var currentUser = await _authService.GetCurrentUserAsync();
-					if (currentUser != null)
-					{
-						var playlistModel = new CarrotDownload.Database.Models.PlaylistModel
-						{
-							ProjectId = _projectId,
-							FileName = fileName,
-							FilePath = file.FilePath, // Use original file path
-							SlotPosition = "", // No default slot
-							OrderIndex = playlistFile.Index, // Store 1-based index (matches UI)
-							UserId = currentUser.Id,
-							CreatedAt = DateTime.UtcNow
-						};
-						
-						await _mongoService.CreatePlaylistAsync(playlistModel);
-					}
-					
-					// Remove from project's Files list in database
-					projectFiles.Remove(file.FilePath);
+					await _mongoService.CreatePlaylistAsync(playlistModel);
 				}
 				
-				// Remove from project files UI
-				ProjectFiles.Remove(file);
+				// Keep the file in the project files UI so the project library persists.
 			}
 			
-			// Update project's Files list in database
-			await _mongoService.UpdateProjectFilesAsync(_projectId, projectFiles);
+			await NotificationService.ShowSuccess("Success! Your files have been added to the playlist.");
 			
-			await NotificationService.ShowSuccess("Files added to playlist successfully!");
-			
-			// Clear selection
+			// Clear selection + de-highlight cards (no collection reload needed)
+			foreach (var projectFile in ProjectFiles.ToList())
+			{
+				projectFile.IsSelected = false;
+			}
 			_selectedFiles.Clear();
 			AddToPlaylistButton.IsVisible = false;
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to add files to playlist: {ex.Message}");
+			await NotificationService.ShowError("We couldn't add files to your playlist. Please try again.");
 		}
 	}
 
@@ -606,7 +619,7 @@ public partial class ProjectDetailPage : ContentPage
 					}
 
 					await PersistPlaylistOrder();
-					await NotificationService.ShowSuccess("Order updated");
+					await NotificationService.ShowSuccess("The order has been updated successfully!");
 				}
 			}
 		}
@@ -656,90 +669,101 @@ public partial class ProjectDetailPage : ContentPage
 		catch (Exception dbEx)
 		{
 			System.Diagnostics.Debug.WriteLine($"[Persist] Database update error: {dbEx.Message}");
-			await NotificationService.ShowError($"Failed to save order: {dbEx.Message}");
+			await NotificationService.ShowError("We couldn't save the order. Please try again.");
 		}
 	}
 
 	// Playlist handlers
 	private async void OnAddSeqClicked(object sender, EventArgs e)
 	{
-		// Get existing slot positions from BOTH temporary and finalized playlists
-		var existingSlots = PlaylistFiles.Select(f => f.SlotPosition)
-			.Concat(FinalizedPlaylistFiles.Select(f => f.SlotPosition))
-			.ToList();
-
-		System.Diagnostics.Debug.WriteLine($"Opening Add Seq dialog with {existingSlots.Count} existing slots:");
-		System.Diagnostics.Debug.WriteLine($"Slots: {string.Join(", ", existingSlots)}");
-		System.Diagnostics.Debug.WriteLine($"Temp playlist has {PlaylistFiles.Count} files");
-		System.Diagnostics.Debug.WriteLine($"Finalized playlist has {FinalizedPlaylistFiles.Count} files");
-
-		// Open Add Seq dialog
-		var dialog = new AddSeqDialog(existingSlots);
-		dialog.PlaylistItemAdded += OnPlaylistItemAdded;
-		
-		await Navigation.PushModalAsync(dialog);
-	}
-
-	private void OnPlaylistItemAdded(object sender, PlaylistItemAddedEventArgs e)
-	{
-		// Add to temporary playlist files collection
+		// Add an inline pending slot (mirrors web multi-block UX)
 		PlaylistFiles.Add(new ProjectFileModel
 		{
 			Index = PlaylistFiles.Count + 1,
-			FileName = e.FileName,
-			FilePath = e.FilePath,
-			SlotPosition = e.SlotPosition,
-			SlotLetter = e.SlotLetter
+			FileName = "No file selected",
+			FilePath = string.Empty,
+			SlotPosition = -1,
+			SlotLetter = string.Empty
 		});
 	}
 
 	private async void OnUploadPlaylistFilesClicked(object sender, EventArgs e)
 	{
-		if (PlaylistFiles.Count == 0)
-		{
-			await NotificationService.ShowInfo("Please add files to the playlist first");
-			return;
-		}
-
 		try
 		{
-			// Validate no duplicate slots in temporary playlist
-			var tempSlots = new HashSet<string>();
-			foreach (var file in PlaylistFiles)
+			// Consider only blocks that actually have a file
+			var validFiles = PlaylistFiles.Where(f => !string.IsNullOrWhiteSpace(f.FilePath)).ToList();
+
+			// Require at least one valid media file
+			if (validFiles.Count == 0)
 			{
-				var slot = file.SlotLetter?.ToLower() ?? "";
-				if (tempSlots.Contains(slot))
-				{
-					await NotificationService.ShowError($"Duplicate slot '{slot}' found in playlist. Please fix before uploading.");
-					return;
-				}
-				tempSlots.Add(slot);
+				await NotificationService.ShowError("Please select an audio or video file. Other file types aren't supported.");
+				return;
 			}
 
-			// Check against existing finalized playlists
-			foreach (var file in PlaylistFiles)
+			// Validate media types for provided files; empty blocks are allowed
+			if (validFiles.Any(f => !IsValidMediaFile(f.FilePath)))
 			{
-				var slot = file.SlotLetter?.ToLower() ?? "";
-				if (FinalizedPlaylistFiles.Any(f => f.SlotLetter?.ToLower() == slot))
+				await NotificationService.ShowError("Please select an audio or video file. Other file types aren't supported.");
+				return;
+			}
+
+			// Validate slots in temporary playlist (only if provided)
+			var tempSlots = new HashSet<string>();
+			foreach (var file in validFiles)
+			{
+				var slotOriginal = file.SlotLetter?.Trim() ?? "";
+				// Check for uppercase letters
+				if (!string.IsNullOrEmpty(slotOriginal) && slotOriginal.Any(char.IsUpper))
 				{
-					await NotificationService.ShowError($"Slot '{slot}' already exists in uploaded playlists. Please choose a different slot.");
+					await NotificationService.ShowError($"The slot '{file.SlotLetter}' for '{file.FileName}' should be lowercase (a-z). Please update it.");
+					return;
+				}
+				var slot = slotOriginal.ToLower();
+
+				// Empty slot is allowed at upload time; it can be set later.
+				if (string.IsNullOrEmpty(slot)) continue;
+
+				if (slot.Length != 1 || slot[0] < 'a' || slot[0] > 'z')
+				{
+					await NotificationService.ShowError($"The slot for '{file.FileName}' should be a single letter (a-z). Please fix '{file.SlotLetter}'.");
+					return;
+				}
+
+				if (!tempSlots.Add(slot))
+				{
+					await NotificationService.ShowError($"The slot '{slot}' is used more than once. Each slot must be unique.");
+					return;
+				}
+			}
+
+			// Check against existing finalized playlists (only for non-empty slots)
+			foreach (var file in validFiles)
+			{
+				var slot = file.SlotLetter?.Trim().ToLower() ?? "";
+				if (string.IsNullOrEmpty(slot)) continue;
+
+				if (FinalizedPlaylistFiles.Any(f => (f.SlotLetter ?? "").Trim().ToLower() == slot))
+				{
+					await NotificationService.ShowError($"The slot '{slot}' is already taken. Please choose a different one.");
 					return;
 				}
 			}
 
 			// Save all playlist files to database using original paths - no file copying
-			foreach (var file in PlaylistFiles)
+			int nextOrderIndex = FinalizedPlaylistFiles.Count + 1; // 1-based
+			foreach (var file in validFiles)
 			{
 				var fileName = Path.GetFileName(file.FilePath);
 
-				// Create playlist model for database
+				// Create playlist model for database with slot position.
 				var playlistModel = new CarrotDownload.Database.Models.PlaylistModel
 				{
 					ProjectId = _projectId,
 					FileName = fileName,
 					FilePath = file.FilePath, // Use original file path
-					SlotPosition = file.SlotLetter,
-					OrderIndex = FinalizedPlaylistFiles.Count + 1, // 1-based: next sequence number
+					SlotPosition = file.SlotLetter?.Trim().ToLower() ?? "",
+					OrderIndex = nextOrderIndex, // 1-based: next sequence number
 					IsPrivate = true, // You can get this from the dialog
 					CreatedAt = DateTime.UtcNow
 				};
@@ -747,25 +771,27 @@ public partial class ProjectDetailPage : ContentPage
 				// Save to database
 				await _mongoService.CreatePlaylistAsync(playlistModel);
 
-				// Add to finalized collection
+				// Add to finalized collection with slot.
 				FinalizedPlaylistFiles.Add(new ProjectFileModel
 				{
-					Index = FinalizedPlaylistFiles.Count + 1,
+					Index = nextOrderIndex,
 					FileName = fileName,
 					FilePath = file.FilePath, // Use original file path
 					SlotPosition = file.SlotPosition,
-					SlotLetter = file.SlotLetter
+					SlotLetter = file.SlotLetter?.Trim().ToLower() ?? ""
 				});
+
+				nextOrderIndex++;
 			}
 
 			// Clear temporary playlist
 			PlaylistFiles.Clear();
 
-			await NotificationService.ShowSuccess("Playlist files uploaded successfully!");
+			await NotificationService.ShowSuccess("Perfect! Your playlist files have been uploaded.");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to upload playlist files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't upload your playlist files. Please try again.");
 		}
 	}
 
@@ -783,6 +809,89 @@ public partial class ProjectDetailPage : ContentPage
 		}
 	}
 
+	private async void OnChoosePendingFileClicked(object sender, EventArgs e)
+	{
+		if (sender is VisualElement ve && ve.BindingContext is ProjectFileModel file)
+		{
+			var pickedPath = await PickMediaFileAsync();
+			if (pickedPath == null) return;
+
+			file.FilePath = pickedPath;
+			file.FileName = Path.GetFileName(pickedPath);
+		}
+	}
+
+	private async void OnPendingFileDropped(object sender, DropEventArgs e)
+	{
+		try
+		{
+			if (sender is BindableObject bo && bo.BindingContext is ProjectFileModel file)
+			{
+				var paths = await GetPathsFromDrop(e);
+				var first = paths?.FirstOrDefault();
+				if (string.IsNullOrWhiteSpace(first) || !File.Exists(first) || !IsValidMediaFile(first))
+				{
+					await NotificationService.ShowError("Please select an audio or video file. Other file types aren't supported.");
+					return;
+				}
+
+				// Enforce single file per block
+				file.FilePath = first;
+				file.FileName = Path.GetFileName(first);
+			}
+		}
+		catch (Exception ex)
+		{
+			await NotificationService.ShowError("We couldn't add that file. Please try again.");
+		}
+	}
+
+	private async Task<string?> PickMediaFileAsync()
+	{
+		try
+		{
+			var options = new PickOptions
+			{
+				PickerTitle = "Select Audio or Video File",
+				FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+				{
+					{ DevicePlatform.iOS, new[] { "public.audio", "public.movie" } },
+					{ DevicePlatform.Android, new[] { "audio/*", "video/*" } },
+					{ DevicePlatform.WinUI, _allowedExtensions.ToArray() }
+				})
+			};
+
+			var result = await FilePicker.Default.PickAsync(options);
+			if (result == null) return null;
+
+			if (!IsValidMediaFile(result.FullPath))
+			{
+				await NotificationService.ShowError("Please select an audio or video file. Other file types aren't supported.");
+				return null;
+			}
+
+			return result.FullPath;
+		}
+		catch (Exception ex)
+		{
+			await NotificationService.ShowError("We couldn't select that file. Please try again.");
+			return null;
+		}
+	}
+
+	private bool IsValidMediaFile(string path)
+	{
+		try
+		{
+			var ext = Path.GetExtension(path);
+			return !string.IsNullOrWhiteSpace(ext) && _allowedExtensions.Contains(ext);
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
 	private async void OnDeleteFinalizedPlaylistFileClicked(object sender, TappedEventArgs e)
 	{
 		if (e.Parameter is ProjectFileModel file)
@@ -796,14 +905,9 @@ public partial class ProjectDetailPage : ContentPage
 				
 				if (!await dialog.GetResultAsync()) return;
 
-				// Delete from database
+				// CRITICAL: Delete from database ONLY - NEVER delete user's original files from disk
+				// Files are stored at their original locations and must remain untouched
 				await _mongoService.DeletePlaylistByFilePathAsync(file.FilePath);
-
-				// Delete file from disk
-				if (File.Exists(file.FilePath))
-				{
-					File.Delete(file.FilePath);
-				}
 
 				// Remove from collection
 				FinalizedPlaylistFiles.Remove(file);
@@ -814,11 +918,52 @@ public partial class ProjectDetailPage : ContentPage
 					FinalizedPlaylistFiles[i].Index = i + 1;
 				}
 
-				await NotificationService.ShowSuccess($"Playlist file '{file.FileName}' deleted successfully");
+				await NotificationService.ShowSuccess($"'{file.FileName}' has been removed from the playlist.");
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Failed to delete playlist file: {ex.Message}");
+				await NotificationService.ShowError("We couldn't remove that file. Please try again.");
+			}
+		}
+	}
+
+	private void OnSlotLetterTextChanged(object sender, TextChangedEventArgs e)
+	{
+		if (sender is BorderlessEntry entry && entry.BindingContext is ProjectFileModel fileModel)
+		{
+			var newText = e.NewTextValue?.Trim() ?? "";
+			
+			// Convert to lowercase automatically
+			if (!string.IsNullOrEmpty(newText))
+			{
+				newText = newText.ToLower();
+				// Limit to single character
+				if (newText.Length > 1)
+				{
+					newText = newText.Substring(0, 1);
+				}
+				// Validate it's a letter a-z, if not, clear it
+				if (newText.Length == 1 && (newText[0] < 'a' || newText[0] > 'z'))
+				{
+					newText = string.Empty;
+					MainThread.BeginInvokeOnMainThread(() =>
+					{
+						entry.Text = string.Empty;
+						fileModel.SlotLetter = string.Empty;
+					});
+					return;
+				}
+			}
+			
+			// Update the model if the text changed
+			if (fileModel.SlotLetter != newText)
+			{
+				fileModel.SlotLetter = newText;
+				// Update the entry text if it was modified (e.g., converted to lowercase)
+				if (entry.Text != newText)
+				{
+					MainThread.BeginInvokeOnMainThread(() => entry.Text = newText);
+				}
 			}
 		}
 	}
@@ -833,20 +978,27 @@ public partial class ProjectDetailPage : ContentPage
 			{
 				if (!string.IsNullOrEmpty(file.SlotLetter))
 				{
+					var slotOriginal = file.SlotLetter.Trim();
+					// Check for uppercase letters
+					if (slotOriginal.Any(char.IsUpper))
+					{
+						await NotificationService.ShowError($"The slot '{file.SlotLetter}' for '{file.FileName}' should be lowercase (a-z). Please update it.");
+						return;
+					}
 					// Normalize to lowercase
-					var slot = file.SlotLetter.Trim().ToLower();
+					var slot = slotOriginal.ToLower();
 					
 					// Validate slot is a-z
 					if (slot.Length != 1 || slot[0] < 'a' || slot[0] > 'z')
 					{
-						await NotificationService.ShowError($"Invalid slot '{file.SlotLetter}' for file '{file.FileName}'. Slot must be a single letter from a to z.");
+						await NotificationService.ShowError($"The slot for '{file.FileName}' should be a single letter (a-z). Please fix '{file.SlotLetter}'.");
 						return;
 					}
 
 					// Check for duplicates
 					if (slots.Contains(slot))
 					{
-						await NotificationService.ShowError($"Duplicate slot '{slot}' found. Each file must have a unique slot position.");
+						await NotificationService.ShowError($"The slot '{slot}' is used more than once. Each file needs a unique slot.");
 						return;
 					}
 
@@ -878,14 +1030,14 @@ public partial class ProjectDetailPage : ContentPage
 				orderIndex++;
 			}
 
-			await NotificationService.ShowSuccess("Playlist order and slot positions saved successfully!");
+			await NotificationService.ShowSuccess("Perfect! Your playlist order and slots have been saved.");
 			
 			// Refresh list to show correct order
 			await LoadPlaylistsFromDatabase();
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to save order: {ex.Message}");
+			await NotificationService.ShowError("We couldn't save the playlist order. Please try again.");
 		}
 	}
 	private async Task<ImageSource?> GenerateThumbnailForFile(string filePath)
@@ -918,10 +1070,10 @@ public partial class ProjectDetailPage : ContentPage
 public class ProjectFileModel : System.ComponentModel.INotifyPropertyChanged
 {
     private int _index;
-    private string _fileName;
-    private string _filePath;
+    private string _fileName = string.Empty;
+    private string _filePath = string.Empty;
     private int _slotPosition;
-    private string _slotLetter;
+    private string _slotLetter = string.Empty;
 
     public int Index 
     { 
@@ -949,8 +1101,18 @@ public class ProjectFileModel : System.ComponentModel.INotifyPropertyChanged
 
     public string SlotLetter 
     { 
-        get => _slotLetter; 
-        set { if (_slotLetter != value) { _slotLetter = value; OnPropertyChanged(); } } 
+        get => _slotLetter ?? string.Empty; 
+        set 
+        { 
+            var newValue = value ?? string.Empty;
+            // Only trim whitespace, don't do aggressive validation here to avoid binding loops
+            newValue = newValue.Trim();
+            if (_slotLetter != newValue) 
+            { 
+                _slotLetter = newValue; 
+                OnPropertyChanged(); 
+            } 
+        } 
     }
 
 	private ImageSource? _thumbnail;
@@ -972,6 +1134,13 @@ public class ProjectFileModel : System.ComponentModel.INotifyPropertyChanged
 	{
 		get => _isSwapSelected;
 		set { if (_isSwapSelected != value) { _isSwapSelected = value; OnPropertyChanged(); } }
+	}
+
+	private bool _isSelected;
+	public bool IsSelected
+	{
+		get => _isSelected;
+		set { if (_isSelected != value) { _isSelected = value; OnPropertyChanged(); } }
 	}
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;

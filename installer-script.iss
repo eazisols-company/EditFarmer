@@ -3,7 +3,7 @@
 ; High-quality icon (no compression) - EditFarmer branding
 
 #define MyAppName "EditFarmer"
-#define MyAppVersion "1.3"
+#define MyAppVersion "1.5"
 #define MyAppPublisher "Const and Props LLC"
 #define MyAppURL "https://edit-farmer-c57dcf858c81.herokuapp.com"
 #define MyAppExeName "CarrotDownload.Maui.exe"
@@ -27,7 +27,7 @@ DisableProgramGroupPage=yes
 
 ; Output
 OutputDir=C:\Users\user\Desktop
-OutputBaseFilename=EditFarmer Setup
+OutputBaseFilename={#MyAppName} Setup {#MyAppVersion}
 SetupIconFile=InstallerAssets\carrot_square.ico
 WizardImageFile=InstallerAssets\wizard_side.bmp
 WizardSmallImageFile=InstallerAssets\wizard_small.bmp
@@ -60,10 +60,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; Application Files
+; IMPORTANT: Run the Windows publish step before compiling this installer script:
+;   dotnet publish .\CarrotDownload.Maui\CarrotDownload.Maui.csproj -c Release -f net8.0-windows10.0.19041.0 -r win-x64
 Source: "CarrotDownload.Maui\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; EditFarmer Icon - High quality, no compression
 Source: "InstallerAssets\carrot_square.ico"; DestDir: "{app}"; DestName: "carrot-icon.ico"; Flags: ignoreversion
-; Bundle .NET Runtime Installer
+; Bundle .NET 8 **Windows Desktop Runtime** installer (NOT SDK!)
+; IMPORTANT: Replace this file with the official Windows Desktop Runtime x64 EXE.
+; Suggested filename: InstallerAssets\dotnet-runtime.exe
 Source: "InstallerAssets\dotnet-runtime.exe"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Icons]

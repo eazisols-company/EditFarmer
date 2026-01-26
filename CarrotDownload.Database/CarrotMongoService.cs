@@ -10,6 +10,18 @@ namespace CarrotDownload.Database
 {
     public class CarrotMongoService
     {
+        public enum LoginFailureReason
+        {
+            Unknown = 0,
+            UserNotFound = 1,
+            WrongPassword = 2,
+            UserBanned = 3,
+            DeviceBanned = 4,
+            DeviceMismatch = 5
+        }
+
+        public sealed record LoginAttemptResult(UserModel? User, LoginFailureReason? FailureReason);
+
         private readonly IMongoCollection<ProgramModel> _programs;
         private readonly IMongoCollection<ProjectModel> _projects;
         private readonly IMongoCollection<UserModel> _users;
@@ -131,6 +143,81 @@ namespace CarrotDownload.Database
             await _users.UpdateOneAsync(u => u.Id == user.Id, loginUpdate);
 
             return user;
+        }
+
+        /// <summary>
+        /// Same as <see cref="LoginUserAsync"/>, but returns a failure reason so the UI can show a more helpful message.
+        /// </summary>
+        public async Task<LoginAttemptResult> LoginUserDetailedAsync(string email, string password, string deviceId)
+        {
+            var user = await _users.Find(u => u.Email == email).FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return new LoginAttemptResult(null, LoginFailureReason.UserNotFound);
+            }
+
+            if (!VerifyPassword(password, user.PasswordHash))
+            {
+                return new LoginAttemptResult(null, LoginFailureReason.WrongPassword);
+            }
+
+            // Check if user is banned
+            if (user.IsBanned)
+            {
+                Console.WriteLine($"[LOGIN] User {email} is BANNED");
+                return new LoginAttemptResult(null, LoginFailureReason.UserBanned);
+            }
+
+            // Check if MAC ID is banned
+            var isMacBanned = await IsMacIdBannedAsync(deviceId);
+            if (isMacBanned)
+            {
+                Console.WriteLine($"[LOGIN] MAC ID {deviceId} is BANNED");
+                return new LoginAttemptResult(null, LoginFailureReason.DeviceBanned);
+            }
+
+            // Device Binding Logic with detailed logging
+            Console.WriteLine($"[LOGIN] Current Device ID: {deviceId}");
+            Console.WriteLine($"[LOGIN] Stored Device ID: {user.DeviceId ?? "NULL"}");
+            Console.WriteLine($"[LOGIN] User Whitelist Status: {user.IsWhitelisted}");
+
+            // 1. If user doesn't have a DeviceId, capture it now (legacy users or first login)
+            if (string.IsNullOrEmpty(user.DeviceId))
+            {
+                Console.WriteLine("[LOGIN] No device ID stored - binding to current device for future tracking");
+                user.DeviceId = deviceId;
+                var update = Builders<UserModel>.Update.Set(u => u.DeviceId, deviceId);
+                await _users.UpdateOneAsync(u => u.Id == user.Id, update);
+            }
+
+            // 2. Performance device binding check
+            if (user.IsWhitelisted)
+            {
+                Console.WriteLine("[LOGIN] User is WHITELISTED - bypassing device mismatch check");
+            }
+            else if (user.DeviceId != deviceId)
+            {
+                // Device mismatch - REJECT login
+                Console.WriteLine($"[LOGIN] DEVICE MISMATCH! Expected: {user.DeviceId}, Got: {deviceId}");
+                Console.WriteLine("[LOGIN] Login REJECTED due to device mismatch");
+                return new LoginAttemptResult(null, LoginFailureReason.DeviceMismatch);
+            }
+            else
+            {
+                Console.WriteLine("[LOGIN] Device ID matches - login allowed");
+            }
+
+            // Log MAC ID usage
+            await LogMacIdUsageAsync(deviceId, user.Id, user.Email, user.FullName);
+
+            // Update last login time and capture device ID if newly bound
+            var loginUpdate = Builders<UserModel>.Update
+                .Set(u => u.LastLoginAt, DateTime.UtcNow)
+                .Set(u => u.DeviceId, user.DeviceId);
+            await _users.UpdateOneAsync(u => u.Id == user.Id, loginUpdate);
+
+            return new LoginAttemptResult(user, null);
         }
 
         public async Task<bool> LoginAdminInDbAsync(string username, string password)
@@ -354,6 +441,11 @@ namespace CarrotDownload.Database
                 .ToListAsync();
         }
 
+        public async Task DeleteExportHistoryAsync(string exportId)
+        {
+            await _exportHistory.DeleteOneAsync(e => e.Id == exportId);
+        }
+
         public async Task<bool> VerifyUserPasswordAsync(string userId, string password)
         {
             var user = await _users.Find(u => u.Id == userId).FirstOrDefaultAsync();
@@ -441,67 +533,51 @@ namespace CarrotDownload.Database
 
         public async Task<bool> DeleteUserAsync(string userId)
         {
-            // 1. Delete Physical Project Files
-            try
-            {
-                var userProjects = await _projects.Find(p => p.UserId == userId).ToListAsync();
-                foreach (var project in userProjects)
-                {
-                    if (!string.IsNullOrEmpty(project.StoragePath) && Directory.Exists(project.StoragePath))
-                    {
-                        try
-                        {
-                            Directory.Delete(project.StoragePath, recursive: true);
-                            Console.WriteLine($"[DeleteUser] Deleted project folder: {project.StoragePath}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[DeleteUser] Failed to delete project folder {project.StoragePath}: {ex.Message}");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DeleteUser] Error processing project files: {ex.Message}");
-            }
+            // IMPORTANT: DO NOT DELETE USER'S ORIGINAL FILES FROM DISK
+            // Only remove database records. User files must remain untouched.
+            // Physical file deletion is DISABLED to protect user data.
+            
+            // 1. Physical Project Files - DISABLED (preserve user files)
+            // Files are stored at original locations and should never be deleted
+            // try
+            // {
+            //     var userProjects = await _projects.Find(p => p.UserId == userId).ToListAsync();
+            //     foreach (var project in userProjects)
+            //     {
+            //         if (!string.IsNullOrEmpty(project.StoragePath) && Directory.Exists(project.StoragePath))
+            //         {
+            //             Directory.Delete(project.StoragePath, recursive: true);
+            //         }
+            //     }
+            // }
+            // catch (Exception ex)
+            // {
+            //     Console.WriteLine($"[DeleteUser] Error processing project files: {ex.Message}");
+            // }
 
-            // 2. Delete Physical Programming Files
-            try
-            {
-                var userPrograms = await _programmingFiles.Find(p => p.UserId == userId).ToListAsync();
-                var processedFolders = new HashSet<string>();
-
-                foreach (var prog in userPrograms)
-                {
-                    if (!string.IsNullOrEmpty(prog.FilePath))
-                    {
-                        var folderPath = Path.GetDirectoryName(prog.FilePath);
-                        if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath) && !processedFolders.Contains(folderPath))
-                        {
-                            // Heuristic: Check if this folder looks like a CarrotDownload Programming folder
-                            // to avoid deleting generic folders if path is somehow wrong.
-                            if (Path.GetFileName(folderPath).Contains("_")) // Our format is {ID}_{Title}
-                            {
-                                try
-                                {
-                                    Directory.Delete(folderPath, recursive: true);
-                                    processedFolders.Add(folderPath);
-                                    Console.WriteLine($"[DeleteUser] Deleted programming folder: {folderPath}");
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"[DeleteUser] Failed to delete programming folder {folderPath}: {ex.Message}");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DeleteUser] Error processing programming files: {ex.Message}");
-            }
+            // 2. Physical Programming Files - DISABLED (preserve user files)
+            // Files are stored at original locations and should never be deleted
+            // try
+            // {
+            //     var userPrograms = await _programmingFiles.Find(p => p.UserId == userId).ToListAsync();
+            //     var processedFolders = new HashSet<string>();
+            //     foreach (var prog in userPrograms)
+            //     {
+            //         if (!string.IsNullOrEmpty(prog.FilePath))
+            //         {
+            //             var folderPath = Path.GetDirectoryName(prog.FilePath);
+            //             if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath) && !processedFolders.Contains(folderPath))
+            //             {
+            //                 Directory.Delete(folderPath, recursive: true);
+            //                 processedFolders.Add(folderPath);
+            //             }
+            //         }
+            //     }
+            // }
+            // catch (Exception ex)
+            // {
+            //     Console.WriteLine($"[DeleteUser] Error processing programming files: {ex.Message}");
+            // }
 
             // 3. Delete DB Records
             await _programs.DeleteManyAsync(p => p.UserId == userId);

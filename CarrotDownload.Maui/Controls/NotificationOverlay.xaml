@@ -3,7 +3,7 @@
              xmlns:services="clr-namespace:CarrotDownload.Maui.Services"
              xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
              x:Class="CarrotDownload.Maui.Controls.NotificationOverlay"
-             InputTransparent="True"
+             InputTransparent="False"
              VerticalOptions="End"
              HorizontalOptions="End"
              Padding="20"
@@ -15,31 +15,62 @@
     
     <VerticalStackLayout BindableLayout.ItemsSource="{x:Static services:NotificationService.Notifications}"
                          Spacing="10"
-                         WidthRequest="350">
+                         WidthRequest="380">
         <BindableLayout.ItemTemplate>
             <DataTemplate x:DataType="services:NotificationMessage">
                 <Border BackgroundColor="{Binding BackgroundColor}"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 8"
-                        Padding="15,12"
-                        Margin="0,0,0,5"
+                        StrokeThickness="1"
+                        Stroke="{Binding BorderColor}"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="16,14"
+                        Margin="0,0,0,8"
                         InputTransparent="False">
                     <Border.Shadow>
-                        <Shadow Brush="Black" Offset="0,4" Radius="10" Opacity="0.15"/>
+                        <Shadow Brush="Black" Offset="0,6" Radius="16" Opacity="0.12"/>
                     </Border.Shadow>
                     
-                    <Grid ColumnDefinitions="Auto, *">
-                        <Label Text="{Binding Type, Converter={StaticResource TypeToIconConverter}}" 
-                               TextColor="White" 
-                               FontSize="18" 
-                               VerticalOptions="Center"
-                               Margin="0,0,10,0"/>
+                    <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="12">
+                        <!-- Icon -->
+                        <Border Grid.Column="0"
+                                BackgroundColor="{Binding IconBackgroundColor}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 20"
+                                WidthRequest="40"
+                                HeightRequest="40"
+                                VerticalOptions="Start">
+                            <Label Text="{Binding Type, Converter={StaticResource TypeToIconConverter}}" 
+                                   TextColor="{Binding IconColor}" 
+                                   FontSize="20" 
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"/>
+                        </Border>
+                        
+                        <!-- Message -->
                         <Label Grid.Column="1"
                                Text="{Binding Message}"
-                               TextColor="White"
+                               TextColor="{Binding TextColor}"
                                FontSize="14"
+                               FontAttributes="None"
                                VerticalOptions="Center"
-                               LineBreakMode="WordWrap"/>
+                               LineBreakMode="WordWrap"
+                               MaxLines="3"/>
+                        
+                        <!-- Close Button -->
+                        <Button Grid.Column="2"
+                                Text="✕"
+                                TextColor="{Binding CloseButtonColor}"
+                                BackgroundColor="Transparent"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                WidthRequest="32"
+                                HeightRequest="32"
+                                CornerRadius="16"
+                                Padding="0"
+                                Margin="0"
+                                BorderWidth="0"
+                                VerticalOptions="Start"
+                                Command="{Binding CloseCommand}"/>
                     </Grid>
                 </Border>
             </DataTemplate>

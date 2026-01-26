@@ -10,3 +10,5 @@ public sealed class MediaJobResult
     public long? SizeBytes { get; init; }
     public string? LogPath { get; init; }
 }
+
+

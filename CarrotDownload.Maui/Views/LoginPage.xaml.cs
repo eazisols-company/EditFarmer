@@ -1,6 +1,7 @@
 using CarrotDownload.Auth.Interfaces;
 using CarrotDownload.Auth.Models;
 using CarrotDownload.Maui.Services;
+using System.Net.Mail;
 using System.Runtime.InteropServices;
 
 namespace CarrotDownload.Maui.Views;
@@ -76,6 +77,19 @@ public partial class LoginPage : ContentPage
 			return;
 		}
 
+		// Validate email format early so user knows if they typed it incorrectly
+		try
+		{
+			_ = new MailAddress(email);
+		}
+		catch
+		{
+			ShowMessage("Email format looks incorrect. Example: name@example.com", false);
+			LoginButton.IsEnabled = true;
+			LoginButton.Text = originalText;
+			return;
+		}
+
 		if (string.IsNullOrEmpty(password))
 		{
 			ShowMessage("Please enter your password", false);
@@ -90,11 +104,27 @@ public partial class LoginPage : ContentPage
 			var deviceId = _deviceInfoService.GetDeviceId();
 			
 			// Authenticate user with device binding check
-			var user = await _mongoService.LoginUserAsync(email, password, deviceId);
+			var loginResult = await _mongoService.LoginUserDetailedAsync(email, password, deviceId);
+			var user = loginResult.User;
 
 			if (user == null)
 			{
-				ShowMessage("Invalid credentials or device not authorized", false);
+				var msg = loginResult.FailureReason switch
+				{
+					CarrotDownload.Database.CarrotMongoService.LoginFailureReason.UserNotFound =>
+						"We couldn't find an account with that email. Please check and try again.",
+					CarrotDownload.Database.CarrotMongoService.LoginFailureReason.WrongPassword =>
+						"Oops! That password doesn't match. Please try again.",
+					CarrotDownload.Database.CarrotMongoService.LoginFailureReason.UserBanned =>
+						"Your account is currently disabled. Need help? Contact our support team.",
+					CarrotDownload.Database.CarrotMongoService.LoginFailureReason.DeviceBanned =>
+						"This device isn't authorized to use this account. Please reach out to support for assistance.",
+					CarrotDownload.Database.CarrotMongoService.LoginFailureReason.DeviceMismatch =>
+						"This account is already linked to another device. Contact support if you need help.",
+					_ => "Something went wrong. Please check your email and password and try again."
+				};
+
+				ShowMessage(msg, false);
 				LoginButton.IsEnabled = true;
 				LoginButton.Text = originalText;
 				return;
@@ -116,7 +146,7 @@ public partial class LoginPage : ContentPage
 			await SecureStorage.Default.SetAsync("user_data", System.Text.Json.JsonSerializer.Serialize(userData));
 			await SecureStorage.Default.SetAsync("is_admin", "false"); // Ensure admin flag is cleared
 
-			ShowMessage("Login successful! Redirecting...", true);
+			ShowMessage("Welcome back! Taking you to your dashboard...", true);
 			
 			// Wait a moment to show success message
 			await Task.Delay(1000);
@@ -133,15 +163,12 @@ public partial class LoginPage : ContentPage
 				await Shell.Current.GoToAsync("//DashboardPage");
 			}
 		}
-		catch (Exception ex)
-		{
-			ShowMessage($"Error: {ex.Message}", false);
-			LoginButton.IsEnabled = true;
-			LoginButton.Text = originalText;
-			ShowMessage($"Error: {ex.Message}", false);
-			LoginButton.IsEnabled = true;
-			LoginButton.Text = originalText;
-		}
+	catch (Exception ex)
+	{
+		ShowMessage("We encountered an issue while logging you in. Please try again.", false);
+		LoginButton.IsEnabled = true;
+		LoginButton.Text = originalText;
+	}
     }
 
     private async void OnAdminLoginClicked(object sender, EventArgs e)
@@ -186,17 +213,17 @@ public partial class LoginPage : ContentPage
                 }
                 catch (Exception navEx)
                 {
-                    await NotificationService.ShowError($"Failed to initialize admin portal: {navEx.Message}");
+                    await NotificationService.ShowError("We couldn't open the admin portal. Please try again.");
                 }
             }
             else
             {
-                await NotificationService.ShowError("Invalid admin credentials");
+                await NotificationService.ShowError("Those admin credentials don't match our records. Please check and try again.");
             }
         }
         catch (Exception ex)
         {
-            await NotificationService.ShowError($"Admin login failed: {ex.Message}");
+            await NotificationService.ShowError("We encountered an issue with admin login. Please try again.");
         }
     }
 }

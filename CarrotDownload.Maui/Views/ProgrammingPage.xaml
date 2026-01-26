@@ -113,19 +113,38 @@
                                                            FontAttributes="Bold"
                                                            TextColor="#666"
                                                            VerticalOptions="Center"/>
-                                                    <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="5,0" VerticalOptions="Center" Margin="1">
-                                                        <controls:BorderlessEntry Text="{Binding SlotPosition}"
-                                                               FontSize="13"
-                                                               WidthRequest="30"
-                                                               HeightRequest="30"
-                                                               MaxLength="1"
-                                                               BackgroundColor="Transparent"
-                                                               TextColor="#333"
-                                                               HorizontalTextAlignment="Center"
-                                                               VerticalOptions="Center"
-                                                               IsReadOnly="True"
-                                                               TextChanged="OnSlotChanged"
-                                                               Unfocused="OnSlotEntryUnfocused"/>
+                                                    <Border Stroke="Transparent" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="Transparent" Padding="8,6" VerticalOptions="Center" Margin="1">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Tapped="OnSlotPositionTapped"/>
+                                                        </Border.GestureRecognizers>
+                                                        <Grid x:Name="SlotContainerGrid"
+                                                              VerticalOptions="Center"
+                                                              Loaded="OnSlotContainerLoaded">
+                                                            <!-- Empty state -->
+                                                            <Label x:Name="SlotPlaceholderLabel"
+                                                                   Text="Click to set position"
+                                                                   FontSize="13"
+                                                                   TextColor="#777"
+                                                                   VerticalOptions="Center"
+                                                                   IsVisible="True" />
+
+                                                            <!-- Slot editor -->
+                                                            <controls:BorderlessEntry x:Name="SlotEntry"
+                                                                                     Text="{Binding SlotPosition}"
+                                                                                     FontSize="13"
+                                                                                     WidthRequest="40"
+                                                                                     HeightRequest="30"
+                                                                                     MaxLength="1"
+                                                                                     BackgroundColor="Transparent"
+                                                                                     TextColor="#333"
+                                                                                     HorizontalTextAlignment="Center"
+                                                                                     VerticalOptions="Center"
+                                                                                     IsReadOnly="True"
+                                                                                     InputTransparent="True"
+                                                                                     IsVisible="False"
+                                                                                     TextChanged="OnSlotChanged"
+                                                                                     Unfocused="OnSlotEntryUnfocused" />
+                                                        </Grid>
                                                     </Border>
                                                 </HorizontalStackLayout>
                                             </Grid>
@@ -165,10 +184,11 @@
                     
                     <!-- Playlists List -->
                     <VerticalStackLayout x:Name="PlaylistsContainer" Spacing="10">
-                        <!-- Playlists will be added here dynamically -->
+                        <!-- Playlists with checkboxes will be added here dynamically -->
                     </VerticalStackLayout>
                     
-                    <Button Text="Apply Files"
+                    <Button x:Name="ApplyFilesButton"
+                            Text="Apply Files"
                             BackgroundColor="#6c757d"
                             TextColor="White"
                             FontSize="14"

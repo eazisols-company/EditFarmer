@@ -243,7 +243,8 @@ public sealed class FFmpegService : IFFmpegService
             }
 
             // Re-encoding ensures all segments are compatible in the output
-            var arguments = $"-f concat -safe 0 -i \"{listFilePath}\" -c:v libx264 -c:a aac -y \"{outputPath}\"";
+            // Added -preset ultrafast for speed
+            var arguments = $"-f concat -safe 0 -i \"{listFilePath}\" -c:v libx264 -preset ultrafast -c:a aac -y \"{outputPath}\"";
 
             var result = await RunFFmpegWithProgressAsync(
                 arguments,
@@ -333,7 +334,7 @@ public sealed class FFmpegService : IFFmpegService
             var timeStr = $"{(int)time.TotalHours:D2}:{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds:D3}";
             var arguments = $"-ss {timeStr} -i \"{inputPath}\" -frames:v 1 -q:v 2 -y \"{outputPath}\"";
 
-            await RunFFmpegCommandAsync(arguments, TimeSpan.FromSeconds(10));
+            await RunFFmpegCommandAsync(arguments, TimeSpan.FromMinutes(5));
 
             return File.Exists(outputPath) ? outputPath : null;
         }
@@ -464,13 +465,31 @@ public sealed class FFmpegService : IFFmpegService
             }
         };
 
-        process.Start();
-        var output = await process.StandardOutput.ReadToEndAsync();
-        var error = await process.StandardError.ReadToEndAsync();
+        using var cts = new CancellationTokenSource(timeout);
 
-        await process.WaitForExitAsync();
+        try
+        {
+            process.Start();
+            var outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+            var errorTask = process.StandardError.ReadToEndAsync(cts.Token);
 
-        return string.IsNullOrEmpty(output) ? error : output;
+            await process.WaitForExitAsync(cts.Token);
+            
+            var output = await outputTask;
+            var error = await errorTask;
+
+            return string.IsNullOrEmpty(output) ? error : output;
+        }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(); } catch { }
+            return "Operation timed out";
+        }
+        catch (Exception ex)
+        {
+             try { process.Kill(); } catch { }
+             return $"Error: {ex.Message}";
+        }
     }
 
     private async Task<string> RunFFprobeCommandAsync(string arguments)

@@ -18,40 +18,127 @@
                 VerticalOptions="Center">
             
             <VerticalStackLayout Spacing="20">
-                <!-- Header -->
-                <Label Text="Add Files to Playlist"
-                       FontSize="20"
-                       FontAttributes="Bold"
-                       TextColor="#333"
-                       HorizontalOptions="Center"/>
-
-                <!-- File Selection -->
-                <VerticalStackLayout Spacing="10">
-                    <Button Text="📁 Select File"
-                            BackgroundColor="#2196F3"
-                            TextColor="White"
-                            FontSize="16"
+                <!-- Header with close button -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Add Files to Playlist"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="#333"
+                           HorizontalOptions="Center"
+                           Grid.Column="0"/>
+                    <Button Text="✕"
+                            Grid.Column="1"
+                            BackgroundColor="Transparent"
+                            TextColor="#666"
                             FontAttributes="Bold"
-                            CornerRadius="8"
-                            HeightRequest="50"
-                            Clicked="OnSelectFileClicked"/>
-                    
-                    <Label x:Name="SelectedFileLabel"
-                           Text="No file selected"
-                           FontSize="12"
-                           TextColor="#666"
-                           HorizontalOptions="Center"/>
+                            FontSize="18"
+                            Padding="0"
+                            WidthRequest="32"
+                            HeightRequest="32"
+                            Clicked="OnCancelClicked"/>
+                </Grid>
+
+                <!-- File Selection with drag-and-drop support -->
+                <VerticalStackLayout Spacing="10">
+                    <!-- Drop zone (shown until a file is selected) -->
+                    <Border x:Name="DropZoneBorder"
+                            Stroke="#d0d0d0"
+                            StrokeThickness="2"
+                            StrokeDashArray="5,5"
+                            StrokeShape="RoundRectangle 8"
+                            BackgroundColor="#fafafa"
+                            Padding="30,20">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnSelectFileClicked"/>
+                            <DropGestureRecognizer AllowDrop="True"
+                                                   Drop="OnFilesDropped"/>
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8" HorizontalOptions="Center" InputTransparent="True">
+                            <Label Text="📁" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>
+                            <Label Text="Drag and drop a file here, or click to select"
+                                   FontSize="14"
+                                   TextColor="#666"
+                                   HorizontalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   InputTransparent="True"/>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Selected file preview (shown after selection) -->
+                    <Border x:Name="SelectedPreviewBorder"
+                            IsVisible="False"
+                            Stroke="#e0e0e0"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            BackgroundColor="#ffffff"
+                            Padding="15">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                            <Label x:Name="SelectedFileLabel"
+                                   Grid.Row="0"
+                                   Grid.Column="0"
+                                   Text="No file selected"
+                                   FontSize="12"
+                                   TextColor="#666"
+                                   LineBreakMode="TailTruncation"/>
+
+                            <Button Text="✕"
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    BackgroundColor="Transparent"
+                                    TextColor="#666"
+                                    FontAttributes="Bold"
+                                    FontSize="16"
+                                    Padding="0"
+                                    WidthRequest="32"
+                                    HeightRequest="32"
+                                    Clicked="OnClearSelectedFileClicked"/>
+
+                            <!-- Video thumbnail preview (generated via FFmpeg) -->
+                            <Border Grid.Row="1"
+                                    Grid.Column="0"
+                                    Grid.ColumnSpan="2"
+                                    BackgroundColor="#1a1a1a"
+                                    StrokeShape="RoundRectangle 6"
+                                    HeightRequest="140">
+                                <Grid>
+                                    <Image x:Name="SelectedThumbnailImage"
+                                           Aspect="AspectFill"/>
+                                    <Label Text="▶"
+                                           FontSize="48"
+                                           TextColor="White"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           Opacity="0.7"/>
+                                </Grid>
+                            </Border>
+
+                            <Button Text="Play"
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    Grid.ColumnSpan="2"
+                                    BackgroundColor="#1a1a1a"
+                                    TextColor="White"
+                                    CornerRadius="6"
+                                    HeightRequest="40"
+                                    Clicked="OnPlaySelectedClicked"/>
+                        </Grid>
+                    </Border>
                 </VerticalStackLayout>
 
-                <!-- Slot Position Input -->
+                <!-- Slot Position Input (optional; applied when adding a single file) -->
                 <VerticalStackLayout Spacing="5">
-                    <Label Text="Enter slot position (a-z)" FontSize="14" TextColor="#333"/>
-                    <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="8,0" Margin="1">
+                    <Label Text="Slot position (a-z, optional)" FontSize="14" TextColor="#333"/>
+                    <Border Stroke="#cccccc"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 4"
+                            BackgroundColor="White"
+                            Padding="8,0"
+                            Margin="1">
                         <controls:BorderlessEntry x:Name="SlotPositionEntry"
-                               Placeholder="Enter slot (a-z)"
-                               MaxLength="1"
-                               BackgroundColor="Transparent"
-                               TextColor="#333"/>
+                                                 Placeholder="Enter slot (a-z)"
+                                                 MaxLength="1"
+                                                 BackgroundColor="Transparent"
+                                                 TextColor="#333"/>
                     </Border>
                 </VerticalStackLayout>
 

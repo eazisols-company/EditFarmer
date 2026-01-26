@@ -5,6 +5,8 @@ using System.Collections.ObjectModel;
 using System.IO.Compression;
 using Microsoft.Maui.Controls.Shapes;
 using System.Linq;
+using Microsoft.Maui.Storage;
+using Microsoft.Maui.ApplicationModel;
 
 using CarrotDownload.Maui.Services;
 
@@ -69,7 +71,7 @@ public partial class DownloadsPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load downloads: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your downloads. Please try again.");
 		}
 	}
 
@@ -253,6 +255,28 @@ public partial class DownloadsPage : ContentPage
 			}
 		});
 
+		// Button Container
+		var buttonContainer = new HorizontalStackLayout
+		{
+			Spacing = 10,
+			HorizontalOptions = LayoutOptions.Center,
+			Margin = new Thickness(0, 10, 0, 5)
+		};
+
+		// Play Button
+		var playButton = new Button
+		{
+			Text = "▶ Play",
+			BackgroundColor = Color.FromArgb("#28a745"),
+			TextColor = Colors.White,
+			FontSize = 14,
+			FontAttributes = FontAttributes.Bold,
+			HeightRequest = 40,
+			WidthRequest = 120,
+			CornerRadius = 6
+		};
+		playButton.Clicked += async (s, e) => await OnPlayVideoClicked(export.ZipFilePath);
+
 		// Download Button - Smaller/Orange
 		var downloadButton = new Button
 		{
@@ -262,14 +286,30 @@ public partial class DownloadsPage : ContentPage
 			FontSize = 14,
 			FontAttributes = FontAttributes.Bold,
 			HeightRequest = 40,
-			WidthRequest = 200,
-			CornerRadius = 6,
-			HorizontalOptions = LayoutOptions.Center,
-			Margin = new Thickness(0, 10, 0, 5)
+			WidthRequest = 120,
+			CornerRadius = 6
 		};
 		downloadButton.Clicked += async (s, e) => await OnDownloadVideoClicked(export.ZipFilePath);
 
-		contentLayout.Children.Add(downloadButton);
+		// Delete Button
+		var deleteButton = new Button
+		{
+			Text = "Delete",
+			BackgroundColor = Color.FromArgb("#dc3545"),
+			TextColor = Colors.White,
+			FontSize = 14,
+			FontAttributes = FontAttributes.Bold,
+			HeightRequest = 40,
+			WidthRequest = 120,
+			CornerRadius = 6
+		};
+		deleteButton.Clicked += async (s, e) => await OnDeleteVideoClicked(export);
+
+		buttonContainer.Children.Add(playButton);
+		buttonContainer.Children.Add(downloadButton);
+		buttonContainer.Children.Add(deleteButton);
+
+		contentLayout.Children.Add(buttonContainer);
 
 		// Assemble Card
 		mainLayout.Children.Add(headerLayout);
@@ -290,7 +330,7 @@ public partial class DownloadsPage : ContentPage
 
 
 
-	private async void OnPlayVideoClicked(string filePath)
+	private async Task OnPlayVideoClicked(string filePath)
 	{
 		try
 		{
@@ -303,12 +343,12 @@ public partial class DownloadsPage : ContentPage
 			}
 			else
 			{
-				await NotificationService.ShowError("Processed file not found at the saved location.");
+				await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
 			}
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Could not play file: {ex.Message}");
+			await NotificationService.ShowError("We couldn't play that file. Please check that it exists.");
 		}
 	}
 
@@ -318,7 +358,7 @@ public partial class DownloadsPage : ContentPage
 		{
 			if (!File.Exists(filePath))
 			{
-				await NotificationService.ShowError("Processed file not found at the saved location.");
+				await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
 				return;
 			}
 
@@ -338,11 +378,51 @@ public partial class DownloadsPage : ContentPage
 			}
 
 			File.Copy(filePath, destPath);
-			await NotificationService.ShowSuccess($"File downloaded to:\n{destPath}");
+			await NotificationService.ShowSuccess($"Success! Your file has been saved to:\n{destPath}");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to download: {ex.Message}");
+			await NotificationService.ShowError("We couldn't download that file. Please try again.");
+		}
+	}
+
+	private async Task OnDeleteVideoClicked(Database.Models.ExportHistoryModel export)
+	{
+		try
+		{
+			// Confirm deletion
+			var dialog = new ConfirmationDialog("Delete Render", 
+				$"Are you sure you want to delete '{export.ZipFileName}'?\n\nThis will remove it from your downloads list and delete the file from disk.",
+				"Delete", "Cancel");
+			await Navigation.PushModalAsync(dialog);
+			
+			if (!await dialog.GetResultAsync()) return;
+
+			// Delete from database
+			await _mongoService.DeleteExportHistoryAsync(export.Id);
+
+			// NOTE: Rendered/exported files (MP4/ZIP) created by the app can be deleted
+			// These are app-generated files, not user's original files
+			// User can manually delete them from Downloads folder if desired
+			if (File.Exists(export.ZipFilePath))
+			{
+				try
+				{
+					File.Delete(export.ZipFilePath);
+				}
+				catch (Exception ex)
+				{
+					System.Diagnostics.Debug.WriteLine($"Warning: Could not delete rendered file: {ex.Message}");
+				}
+			}
+
+			// Reload the list
+			await LoadRenderedFiles();
+			await NotificationService.ShowSuccess("The render has been deleted successfully!");
+		}
+		catch (Exception ex)
+		{
+			await NotificationService.ShowError("We couldn't delete that render. Please try again.");
 		}
 	}
 	private async void OnBackClicked(object sender, EventArgs e)

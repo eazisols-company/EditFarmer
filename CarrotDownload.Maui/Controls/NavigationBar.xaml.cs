@@ -1,12 +1,13 @@
 using CarrotDownload.Auth.Interfaces;
 using CarrotDownload.Maui.Views;
+using CarrotDownload.Maui.Services;
 
 namespace CarrotDownload.Maui.Controls;
 
 public partial class NavigationBar : ContentView
 {
 	private readonly IAuthService _authService;
-	private string _currentAccentColor = "#ff5722";
+	private string _currentAccentColor = "#ffffff";
 
 	public NavigationBar()
 	{
@@ -55,20 +56,9 @@ public partial class NavigationBar : ContentView
 
 	private void LoadAccentColor(string? userId = null)
 	{
-		// Load accent color from preferences, checking user-specific first if ID provided
-		string accentColor = "#ffffff"; // Default White
-		
-		if (!string.IsNullOrEmpty(userId))
-		{
-			accentColor = Preferences.Get($"AccentColor_{userId}", Preferences.Get("AccentColor", "#ffffff"));
-		}
-		else
-		{
-			accentColor = Preferences.Get("AccentColor", "#ffffff");
-		}
-
-		_currentAccentColor = accentColor;
-		ApplyAccentColor(accentColor);
+		// Load accent color from in-memory session (defaults to white per app launch)
+		_currentAccentColor = AccentColorSession.CurrentColor;
+		ApplyAccentColor(_currentAccentColor);
 	}
 
 	private void SubscribeToAccentColorChanges()

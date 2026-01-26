@@ -23,8 +23,7 @@ public partial class ProgrammingPage : ContentPage
 	private List<Border> _programTitleButtons = new();
 	public ObservableCollection<Database.Models.ProgrammingFileModel> SelectedProgramFiles { get; set; } = new();
 	private Dictionary<string, int> _dotClickCounts = new(); // Track dot clicks for deletion
-	private Database.Models.ProjectModel _selectedPlaylist; // Track selected playlist
-	private Border _selectedPlaylistBorder; // Track selected playlist border for visual feedback
+	private List<PlaylistSelectionItem> _playlistItems = new(); // Track playlist selections
 	
 	public ProgrammingPage(CarrotMongoService mongoService, IAuthService authService)
 	{
@@ -97,7 +96,7 @@ public partial class ProgrammingPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load programming files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your programming files. Please try again.");
 		}
 	}
 	
@@ -124,8 +123,12 @@ public partial class ProgrammingPage : ContentPage
 			selectedLabel.TextColor = Colors.White;
 		}
 		
-		// Filter files for this program
-		var programFiles = allFiles.Where(f => f.ProgramTitle == programTitle).ToList();
+		// Filter files for this program (sorted by slot position a-z)
+		var programFiles = allFiles
+			.Where(f => f.ProgramTitle == programTitle)
+			.OrderBy(f => GetSlotSortKey(f.SlotPosition))
+			.ThenBy(f => f.FileName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+			.ToList();
 		
 		SelectedProgramFiles.Clear();
 		foreach (var file in programFiles)
@@ -160,50 +163,26 @@ public partial class ProgrammingPage : ContentPage
 				{
 					try
 					{
-						// 1. Delete from Database
+						// CRITICAL: Delete from Database ONLY - NEVER delete user's original files from disk
+						// Files are stored at their original locations and must remain untouched
 						await _mongoService.DeleteProgrammingFileAsync(file.Id);
-						
-						// 2. Delete Physical File
-						if (!string.IsNullOrEmpty(file.FilePath) && IO.File.Exists(file.FilePath))
-						{
-							try 
-							{
-								// IO.File.Delete(file.FilePath); // Do NOT delete physical file
-								// IO.File.Delete(file.FilePath); // Do NOT delete physical file
-								
-								// 3. Check if folder is empty and delete it
-								var folderPath = IO.Path.GetDirectoryName(file.FilePath);
-								if (!string.IsNullOrEmpty(folderPath) && IO.Directory.Exists(folderPath))
-								{
-									// Create Programming folder logic creates specific folders per program
-									// So we can safely delete if empty
-									if (!IO.Directory.EnumerateFileSystemEntries(folderPath).Any())
-									{
-										IO.Directory.Delete(folderPath);
-									}
-								}
-							}
-							catch (Exception)
-							{
-							}
-						}
 
 						// 4. Update UI
 						SelectedProgramFiles.Remove(file);
 						_dotClickCounts.Remove(file.Id);
 
-						await NotificationService.ShowSuccess("File deleted successfully");
+						await NotificationService.ShowSuccess("The file has been deleted successfully!");
 
 						// 5. If Program is empty, reload entire page to remove the tab
 						if (SelectedProgramFiles.Count == 0)
 						{
-							await NotificationService.ShowInfo("Programming empty. Removing from list.");
+							await NotificationService.ShowInfo("This programming is now empty and has been removed.");
 							await LoadProgrammingFiles();
 						}
 					}
 					catch (Exception ex)
 					{
-						await NotificationService.ShowError($"Failed to delete: {ex.Message}");
+						await NotificationService.ShowError("We couldn't delete that file. Please try again.");
 					}
 				}
 				else
@@ -228,9 +207,16 @@ public partial class ProgrammingPage : ContentPage
 			var projects = await _mongoService.GetUserProjectsAsync(currentUser.Id);
 			
 			PlaylistsContainer.Children.Clear();
+			_playlistItems.Clear();
 			
 			foreach (var project in projects)
 			{
+				var playlistItem = new PlaylistSelectionItem
+				{
+					Project = project,
+					IsChecked = false
+				};
+				
 				var border = new Border
 				{
 					BackgroundColor = Colors.White,
@@ -239,7 +225,7 @@ public partial class ProgrammingPage : ContentPage
 					StrokeShape = new RoundRectangle { CornerRadius = 6 },
 					Padding = new Thickness(15, 10),
 					Margin = new Thickness(0, 5),
-					WidthRequest = 200,
+					WidthRequest = 220,
 					HorizontalOptions = LayoutOptions.Center
 				};
 				
@@ -248,46 +234,45 @@ public partial class ProgrammingPage : ContentPage
 					Text = project.Title,
 					TextColor = Color.FromArgb("#333"),
 					FontSize = 16,
-					HorizontalOptions = LayoutOptions.Center
+					HorizontalOptions = LayoutOptions.Center,
+					VerticalOptions = LayoutOptions.Center
 				};
-				
+
+				// Tap gesture to toggle selection
+				var tapGesture = new TapGestureRecognizer();
+				tapGesture.Tapped += (s, e) =>
+				{
+					playlistItem.IsChecked = !playlistItem.IsChecked;
+					UpdateApplyFilesButtonState();
+					
+					// Update visual state of border
+					if (playlistItem.IsChecked)
+					{
+						border.BackgroundColor = Color.FromArgb("#5e6eea");
+						border.Stroke = Color.FromArgb("#5e6eea");
+						label.TextColor = Colors.White;
+					}
+					else
+					{
+						border.BackgroundColor = Colors.White;
+						border.Stroke = Color.FromArgb("#333");
+						label.TextColor = Color.FromArgb("#333");
+					}
+				};
+
+				border.GestureRecognizers.Add(tapGesture);
 				border.Content = label;
 				
-				// Add tap gesture to select playlist
-				var tapGesture = new TapGestureRecognizer();
-				tapGesture.Tapped += (s, e) => OnPlaylistSelected(project, border, label);
-				border.GestureRecognizers.Add(tapGesture);
-				
 				PlaylistsContainer.Children.Add(border);
+				_playlistItems.Add(playlistItem);
 			}
+
+			UpdateApplyFilesButtonState();
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load playlists: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your playlists. Please try again.");
 		}
-	}
-	
-	private void OnPlaylistSelected(Database.Models.ProjectModel project, Border border, Label label)
-	{
-		// Reset previous selection
-		if (_selectedPlaylistBorder != null)
-		{
-			_selectedPlaylistBorder.BackgroundColor = Colors.White;
-			_selectedPlaylistBorder.Stroke = Color.FromArgb("#333");
-			if (_selectedPlaylistBorder.Content is Label oldLabel)
-			{
-				oldLabel.TextColor = Color.FromArgb("#333");
-			}
-		}
-		
-		// Set new selection
-		_selectedPlaylist = project;
-		_selectedPlaylistBorder = border;
-		
-		// Highlight selected playlist (purple)
-		border.BackgroundColor = Color.FromArgb("#5e6eea");
-		border.Stroke = Color.FromArgb("#5e6eea");
-		label.TextColor = Colors.White;
 	}
 	
 	private void OnSlotChanged(object sender, TextChangedEventArgs e)
@@ -304,16 +289,68 @@ public partial class ProgrammingPage : ContentPage
 
 	private void OnSlotPositionTapped(object sender, EventArgs e)
 	{
-		if (sender is HorizontalStackLayout layout)
+		// Handle tap on the StackLayout (when clicking label) or the Border (when clicking alphabet box)
+		if (sender is View view)
 		{
-			var entry = layout.Children.OfType<BorderlessEntry>().FirstOrDefault();
-			if (entry != null)
+			// If we clicked the Border containing the entry
+			if (view is Border directBorder)
 			{
-				entry.IsReadOnly = false;
-				entry.BackgroundColor = Color.FromArgb("#ffffff"); // Show white when editing
-				entry.Focus();
+				var directEntry = FindSlotEntry(directBorder);
+				if (directEntry != null)
+				{
+					EnableSlotEditing(directBorder, directEntry);
+					return;
+				}
+			}
+			
+			// If we clicked the stack layout, find the border inside it
+			if (view is HorizontalStackLayout layout)
+			{
+				var border = layout.Children.OfType<Border>().FirstOrDefault();
+				if (border != null)
+				{
+					var entry = FindSlotEntry(border);
+					if (entry != null)
+					{
+						EnableSlotEditing(border, entry);
+					}
+				}
 			}
 		}
+	}
+
+	private static BorderlessEntry? FindSlotEntry(Border border)
+	{
+		// New template: Border.Content is a Grid containing placeholder Label + SlotEntry
+		if (border.Content is Grid grid)
+		{
+			return grid.Children.OfType<BorderlessEntry>().FirstOrDefault();
+		}
+
+		// Backwards compatibility (older template)
+		return border.Content as BorderlessEntry;
+	}
+
+	private void EnableSlotEditing(Border border, BorderlessEntry entry)
+	{
+		// If we're in the "empty slot" state, reveal the entry and hide the placeholder text
+		if (border.Content is Grid grid)
+		{
+			var placeholder = grid.Children.OfType<Label>().FirstOrDefault();
+			if (placeholder != null)
+				placeholder.IsVisible = false;
+
+			entry.IsVisible = true;
+		}
+
+		entry.IsReadOnly = false;
+		entry.InputTransparent = false; // Enable input
+		
+		// Highlight the box
+		border.Stroke = Color.FromArgb("#cccccc");
+		border.BackgroundColor = Colors.White;
+		
+		entry.Focus();
 	}
 
 	private void OnSlotEntryUnfocused(object sender, FocusEventArgs e)
@@ -321,7 +358,52 @@ public partial class ProgrammingPage : ContentPage
 		if (sender is BorderlessEntry entry)
 		{
 			entry.IsReadOnly = true;
-			entry.BackgroundColor = Colors.Transparent;
+			entry.InputTransparent = true; // Disable input so taps go to container/border
+
+			// Our visual tree is: Border -> Grid (SlotContainerGrid) -> Label + Entry
+			var grid = entry.Parent as Grid;
+			var border = grid?.Parent as Border;
+
+			// Remove highlight from the border
+			if (border != null)
+			{
+				border.Stroke = Colors.Transparent;
+				border.BackgroundColor = Colors.Transparent;
+			}
+
+			// If user left it blank, swap back to the "Click to set position" text
+			if (grid != null && string.IsNullOrWhiteSpace(entry.Text))
+			{
+				entry.IsVisible = false;
+				var placeholder = grid.Children.OfType<Label>().FirstOrDefault();
+				if (placeholder != null)
+					placeholder.IsVisible = true;
+			}
+		}
+	}
+
+	private void OnSlotContainerLoaded(object sender, EventArgs e)
+	{
+		if (sender is Grid grid && grid.BindingContext is Database.Models.ProgrammingFileModel file)
+		{
+			var placeholder = grid.Children.OfType<Label>().FirstOrDefault();
+			var entry = grid.Children.OfType<BorderlessEntry>().FirstOrDefault();
+			if (placeholder == null || entry == null)
+				return;
+
+			// Initial state based on whether a slot is already set
+			if (string.IsNullOrWhiteSpace(file.SlotPosition))
+			{
+				placeholder.IsVisible = true;
+				entry.IsVisible = false;
+				entry.Text = string.Empty;
+			}
+			else
+			{
+				placeholder.IsVisible = false;
+				entry.IsVisible = true;
+				entry.Text = file.SlotPosition;
+			}
 		}
 	}
 	
@@ -329,39 +411,80 @@ public partial class ProgrammingPage : ContentPage
 	{
 		try
 		{
-			// Validate all slots
+			// Validate only slots that are provided (empty is allowed)
 			foreach (var file in SelectedProgramFiles)
 			{
-				if (string.IsNullOrEmpty(file.SlotPosition) || file.SlotPosition.Length != 1 || file.SlotPosition[0] < 'a' || file.SlotPosition[0] > 'z')
+				var slot = file.SlotPosition?.Trim();
+				if (string.IsNullOrEmpty(slot))
+					continue;
+
+				slot = slot.ToLowerInvariant();
+				file.SlotPosition = slot;
+
+				if (slot.Length != 1 || slot[0] < 'a' || slot[0] > 'z')
 				{
-					ShowError("All slots must be a single letter from a to z");
+					ShowError("Each slot should be a single letter from a to z (or leave it blank).");
 					return;
 				}
 			}
 			
-			// Check for duplicate slots within this programming
-			var slots = SelectedProgramFiles.Select(f => f.SlotPosition).ToList();
-			var duplicates = slots.GroupBy(s => s).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+			// Check for duplicate slots (ignore empty)
+			var slots = SelectedProgramFiles
+				.Select(f => f.SlotPosition?.Trim())
+				.Where(s => !string.IsNullOrEmpty(s))
+				.Select(s => s!.ToLowerInvariant())
+				.ToList();
+
+			var duplicates = slots
+				.GroupBy(s => s)
+				.Where(g => g.Count() > 1)
+				.Select(g => g.Key)
+				.ToList();
 			
 			if (duplicates.Any())
 			{
-				ShowError($"Another file already has this slot: {string.Join(", ", duplicates)}");
+				ShowError($"These slots are already in use: {string.Join(", ", duplicates)}. Please choose different ones.");
 				return;
 			}
 			
-			// Update all files in database
+			// Update slot positions in database (blank is allowed)
 			foreach (var file in SelectedProgramFiles)
 			{
-				await _mongoService.UpdateProgrammingFileSlotAsync(file.Id, file.SlotPosition);
+				await _mongoService.UpdateProgrammingFileSlotAsync(file.Id, file.SlotPosition ?? string.Empty);
 			}
 			
 			// await DisplayAlert("Success", "Slot positions updated successfully", "OK");
 			await ShowSuccessMessage("Slot positions updated successfully");
 			ErrorMessageBorder.IsVisible = false;
+
+			// Re-sort list after slot updates so UI stays in a,b,c... order
+			SortSelectedProgramFiles();
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to save changes: {ex.Message}");
+			await NotificationService.ShowError("We couldn't save your changes. Please try again.");
+		}
+	}
+
+	private static int GetSlotSortKey(string? slot)
+	{
+		if (string.IsNullOrWhiteSpace(slot)) return int.MaxValue; // No slot goes last
+		var c = char.ToLowerInvariant(slot.Trim()[0]);
+		if (c < 'a' || c > 'z') return int.MaxValue;
+		return c - 'a';
+	}
+
+	private void SortSelectedProgramFiles()
+	{
+		var sorted = SelectedProgramFiles
+			.OrderBy(f => GetSlotSortKey(f.SlotPosition))
+			.ThenBy(f => f.FileName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
+		SelectedProgramFiles.Clear();
+		foreach (var file in sorted)
+		{
+			SelectedProgramFiles.Add(file);
 		}
 	}
 	
@@ -378,14 +501,15 @@ public partial class ProgrammingPage : ContentPage
 			// Validate that a program is selected
 			if (string.IsNullOrEmpty(_selectedProgramTitle) || SelectedProgramFiles.Count == 0)
 			{
-				await NotificationService.ShowError("Please select a programming first");
+				await NotificationService.ShowError("Please select a programming file to continue.");
 				return;
 			}
 
-			// Validate that a playlist is selected
-			if (_selectedPlaylist == null)
+			// Validate that at least one playlist is selected
+			var selectedPlaylists = _playlistItems.Where(p => p.IsChecked).ToList();
+			if (!selectedPlaylists.Any())
 			{
-				await NotificationService.ShowError("Please select a playlist first");
+				await NotificationService.ShowError("Please select at least one playlist to continue.");
 				return;
 			}
 
@@ -393,96 +517,116 @@ public partial class ProgrammingPage : ContentPage
 			var currentUser = await _authService.GetCurrentUserAsync();
 			if (currentUser == null)
 			{
-				await NotificationService.ShowError("User not authenticated");
+				await NotificationService.ShowError("Please log in to continue.");
 				return;
 			}
 
-			var project = _selectedPlaylist;
+			int processedCount = 0;
+
+			foreach (var playlistItem in selectedPlaylists)
+			{
+				var project = playlistItem.Project;
+				if (project == null)
+					continue;
+
+				// Prefer custom ProjectId when available (matches playlist ProjectId)
+				var projectId = !string.IsNullOrEmpty(project.ProjectId) ? project.ProjectId : project.Id;
 
 			// Get existing playlist files
-			var existingPlaylistFiles = await _mongoService.GetProjectPlaylistsAsync(project.ProjectId);
+				var existingPlaylistFiles = await _mongoService.GetProjectPlaylistsAsync(projectId);
 			if (existingPlaylistFiles == null || existingPlaylistFiles.Count == 0)
 			{
-				await NotificationService.ShowError("Selected playlist has no files");
+					await NotificationService.ShowWarning($"'{project.Title}' has no files and was skipped.");
+					continue;
+			}
+
+			// Iterate through selected program files and update corresponding playlist files
+			foreach (var progFile in SelectedProgramFiles)
+			{
+				if (string.IsNullOrEmpty(progFile.SlotPosition)) continue;
+
+				// Find matching playlist files with the same slot letter
+				var matchingPlaylistFiles = existingPlaylistFiles
+					.Where(p => string.Equals(p.SlotPosition, progFile.SlotPosition, StringComparison.OrdinalIgnoreCase))
+					.ToList();
+
+				foreach (var match in matchingPlaylistFiles)
+				{
+					// Delete old playlist entry
+					await _mongoService.DeletePlaylistByIdAsync(match.Id);
+
+					// Create new playlist entry with program file info but keeping playlist metadata
+					var newFileName = IO.Path.GetFileName(progFile.FilePath);
+					var newPlaylistFile = new PlaylistModel
+					{
+							ProjectId = projectId,
+						FileName = newFileName,
+						FilePath = progFile.FilePath,
+						SlotPosition = match.SlotPosition, // Keep original slot
+						OrderIndex = match.OrderIndex, // Keep original order
+						UserId = currentUser.Id,
+						Notes = new List<string>(), // Reset notes
+						IsPrivate = project.IsPrivate,
+						CreatedAt = DateTime.UtcNow
+					};
+
+					await _mongoService.CreatePlaylistAsync(newPlaylistFile);
+				}
+			}
+
+				processedCount++;
+			}
+
+			if (processedCount == 0)
+			{
+				await NotificationService.ShowWarning("No playlists were updated. Please check that they contain files.");
 				return;
 			}
 
-			// Sort existing files by OrderIndex
-			var sortedPlaylistFiles = existingPlaylistFiles.OrderBy(f => f.OrderIndex).ToList();
-
-			// Validate that we have enough programming files
-			if (SelectedProgramFiles.Count < sortedPlaylistFiles.Count)
-			{
-				var dialog = new ConfirmationDialog("Warning", 
-					$"Programming has {SelectedProgramFiles.Count} files but playlist has {sortedPlaylistFiles.Count} slots. Continue anyway?", 
-					"Continue", "Cancel");
-				await Navigation.PushModalAsync(dialog);
-				if (!await dialog.GetResultAsync())
-					return;
-			}
-
-			// Sort programming files by slot position (a, b, c, etc.)
-			var sortedProgrammingFiles = SelectedProgramFiles.OrderBy(f => f.SlotPosition).ToList();
-
-			// Delete old playlist files from database only - do NOT delete physical files
-			foreach (var oldFile in sortedPlaylistFiles)
-			{
-				// Delete from database only
-				await _mongoService.DeletePlaylistByIdAsync(oldFile.Id);
-
-				// Do NOT delete physical files
-				// if (!string.IsNullOrEmpty(oldFile.FilePath) && IO.File.Exists(oldFile.FilePath))
-				// {
-				// 	try
-				// 	{
-				// 		IO.File.Delete(oldFile.FilePath);
-				// 	}
-				// 	catch (Exception)
-				// 	{
-				// 	}
-				// }
-			}
-
-			// Create new playlist files using original programming file paths
-			int filesApplied = 0;
-			for (int i = 0; i < sortedPlaylistFiles.Count && i < sortedProgrammingFiles.Count; i++)
-			{
-				var oldPlaylistFile = sortedPlaylistFiles[i];
-				var programmingFile = sortedProgrammingFiles[i];
-
-				// Use original programming file path - no copying
-				var newFileName = IO.Path.GetFileName(programmingFile.FilePath);
-
-				// Create new playlist entry in database with original path
-				var newPlaylistFile = new PlaylistModel
-				{
-					ProjectId = project.ProjectId,
-					FileName = newFileName,
-					FilePath = programmingFile.FilePath, // Use original path
-					SlotPosition = oldPlaylistFile.SlotPosition, // Keep original slot position
-					OrderIndex = oldPlaylistFile.OrderIndex, // Keep original order
-					UserId = currentUser.Id,
-					Notes = new List<string>(), // Start with empty notes
-					IsPrivate = project.IsPrivate,
-					CreatedAt = DateTime.UtcNow
-				};
-
-				await _mongoService.CreatePlaylistAsync(newPlaylistFile);
-				filesApplied++;
-			}
-
-			var successMessage = "Playlist processed successfully!";
+			var successMessage = processedCount == 1
+				? "Playlist processed successfully!"
+				: $"{processedCount} playlists processed successfully!";
 			await ShowSuccessMessage(successMessage);
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to apply files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't apply those files. Please try again.");
 		}
 	}
 
 	private async Task ShowSuccessMessage(string message)
 	{
 		await NotificationService.ShowSuccess(message);
+	}
+
+	private void UpdateApplyFilesButtonState()
+	{
+		if (ApplyFilesButton == null)
+			return;
+
+		int selectedCount = _playlistItems.Count(p => p.IsChecked);
+
+		// Keep button text constant per UX request
+		ApplyFilesButton.Text = "Apply Files";
+
+		if (selectedCount > 0)
+		{
+			ApplyFilesButton.IsEnabled = true;
+			ApplyFilesButton.BackgroundColor = Color.FromArgb("#28a745");
+			ApplyFilesButton.Opacity = 1.0;
+		}
+		else
+		{
+			ApplyFilesButton.IsEnabled = false;
+			ApplyFilesButton.BackgroundColor = Color.FromArgb("#6c757d");
+			ApplyFilesButton.Opacity = 0.7;
+		}
+	}
+
+	private class PlaylistSelectionItem
+	{
+		public bool IsChecked { get; set; }
+		public Database.Models.ProjectModel Project { get; set; }
 	}
 
 	private async void OnBackClicked(object sender, EventArgs e)

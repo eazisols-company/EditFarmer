@@ -189,6 +189,16 @@
                                        Stroke="#e0e0e0"
                                        StrokeThickness="1"
                                        Padding="8">
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Stroke" Value="#28a745" />
+                                            <Setter Property="Shadow">
+                                                <Setter.Value>
+                                                    <Shadow Brush="#28a745" Radius="8" Opacity="0.5"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Border.Triggers>
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnFileDoubleClicked" CommandParameter="{Binding .}"/>
                                     </Border.GestureRecognizers>
@@ -290,29 +300,57 @@
                                     HorizontalOptions="Center"
                                     Clicked="OnAddSeqClicked"/>
 
-                            <!-- Temporary Playlist Items (before upload) -->
+                            <!-- Inline Add Seq blocks (matching web UX) -->
                             <CollectionView ItemsSource="{Binding PlaylistFiles}"
-                                          Margin="0,10,0,0">
+                                            Margin="0,10,0,0">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
                                         <Border BackgroundColor="#f0f0f0"
-                                               StrokeShape="RoundRectangle 4"
-                                               Padding="10"
-                                               Margin="0,0,0,5">
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Label Grid.Column="0"
+                                               StrokeShape="RoundRectangle 6"
+                                               Padding="12"
+                                               Margin="0,0,0,8">
+                                            <Grid RowDefinitions="Auto,Auto"
+                                                  ColumnDefinitions="Auto,*,Auto"
+                                                  ColumnSpacing="10"
+                                                  RowSpacing="8">
+                                                <!-- Index -->
+                                                <Label Grid.Row="0"
+                                                       Grid.Column="0"
                                                        Text="{Binding Index}"
                                                        FontSize="16"
                                                        FontAttributes="Bold"
                                                        TextColor="#2196F3"
                                                        VerticalOptions="Center"
-                                                       Margin="0,0,10,0"/>
-                                                <Label Grid.Column="1"
-                                                       Text="{Binding FileName}"
-                                                       FontSize="14"
-                                                       TextColor="#333"
-                                                       VerticalOptions="Center"/>
-                                                <Border Grid.Column="2"
+                                                       Margin="0,0,8,0"/>
+
+                                                <!-- File chooser / drop area -->
+                                                <Border Grid.Row="0"
+                                                        Grid.Column="1"
+                                                        Stroke="#d0d0d0"
+                                                        StrokeThickness="1"
+                                                        StrokeShape="RoundRectangle 6"
+                                                        BackgroundColor="White"
+                                                        Padding="10">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnChoosePendingFileClicked"/>
+                                                        <DropGestureRecognizer AllowDrop="True"
+                                                                               Drop="OnPendingFileDropped"/>
+                                                    </Border.GestureRecognizers>
+                                                    <VerticalStackLayout Spacing="4">
+                                                        <Label Text="{Binding FileName}"
+                                                               FontSize="13"
+                                                               TextColor="#333"
+                                                               LineBreakMode="TailTruncation"
+                                                               MaxLines="1"/>
+                                                        <Label Text="(Tap or drop one file)"
+                                                               FontSize="11"
+                                                               TextColor="#777"/>
+                                                    </VerticalStackLayout>
+                                                </Border>
+
+                                                <!-- Remove -->
+                                                <Border Grid.Row="0"
+                                                       Grid.Column="2"
                                                        BackgroundColor="#ff5722"
                                                        StrokeShape="RoundRectangle 4"
                                                        Padding="8,4">
@@ -324,6 +362,31 @@
                                                            FontSize="12"
                                                            FontAttributes="Bold"/>
                                                 </Border>
+
+                                                <!-- Slot entry (optional) -->
+                                                <HorizontalStackLayout Grid.Row="1"
+                                                                        Grid.Column="0"
+                                                                        Grid.ColumnSpan="3"
+                                                                        Spacing="8"
+                                                                        VerticalOptions="Center">
+                                                    <Label Text="Slot (optional):"
+                                                           FontSize="12"
+                                                           TextColor="#333"
+                                                           VerticalOptions="Center"/>
+                                                    <Border Stroke="#cccccc"
+                                                            StrokeThickness="1"
+                                                            StrokeShape="RoundRectangle 4"
+                                                            BackgroundColor="White"
+                                                            Padding="6,2"
+                                                            WidthRequest="80">
+                                                        <controls:BorderlessEntry Text="{Binding SlotLetter, Mode=TwoWay}"
+                                                                                  MaxLength="1"
+                                                                                  Placeholder="a-z"
+                                                                                  TextChanged="OnSlotLetterTextChanged"
+                                                                                  HorizontalTextAlignment="Center"
+                                                                                  FontSize="12"/>
+                                                    </Border>
+                                                </HorizontalStackLayout>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -449,7 +512,8 @@
                                                                WidthRequest="40"
                                                                MaxLength="1"
                                                                HorizontalTextAlignment="Center"
-                                                               BackgroundColor="Transparent"/>
+                                                               BackgroundColor="Transparent"
+                                                               TextChanged="OnSlotLetterTextChanged"/>
                                                     </Border>
                                                     </HorizontalStackLayout>
                                                     

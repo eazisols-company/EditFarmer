@@ -11,3 +11,5 @@ public sealed class DeviceBinding
     public DeviceStatus Status { get; init; } = DeviceStatus.Active;
 }
 
+
+

@@ -14,3 +14,5 @@ public sealed class FFmpegOptions
     public string? Resolution { get; init; }
     public string? ExtraArgs { get; init; }
 }
+
+

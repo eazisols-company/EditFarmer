@@ -9,7 +9,7 @@ public partial class SettingsPage : ContentPage
 {
 	private readonly IAuthService _authService;
 	private readonly CarrotDownload.Database.CarrotMongoService _mongoService;
-	private string _selectedAccentColor = "#ff5722";
+	private string _selectedAccentColor = "#ffffff";
 	private string? _currentUserId;
 	private string? _editingAddressId = null;
     private Action? _pendingConfirmAction;
@@ -86,10 +86,8 @@ public partial class SettingsPage : ContentPage
 				FullNameEntry.Text = user.FullName;
 				EmailEntry.Text = user.Email;
 				
-				// Ensure we load the USER SPECIFIC accent color
-				// Default back to global or White if not found
-				var userAccentColor = Preferences.Get($"AccentColor_{user.Id}", Preferences.Get("AccentColor", "#ff5722"));
-				_selectedAccentColor = userAccentColor;
+				// Use session accent color (defaults to white per app launch)
+				_selectedAccentColor = AccentColorSession.CurrentColor;
 
 				// Apply to UI
 				UpdateSelectedColor(_selectedAccentColor);
@@ -105,7 +103,7 @@ public partial class SettingsPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to load user settings: {ex.Message}");
+			await NotificationService.ShowError("We couldn't load your settings. Please try again.");
 		}
 	}
 
@@ -173,14 +171,8 @@ public partial class SettingsPage : ContentPage
 		_selectedAccentColor = color;
 		UpdateSelectedColor(color);
 		
-		// Save to USER SPECIFIC preference
-		if (!string.IsNullOrEmpty(_currentUserId))
-		{
-			Preferences.Set($"AccentColor_{_currentUserId}", _selectedAccentColor);
-		}
-		
-		// Also update global/legacy for fallback
-		Preferences.Set("AccentColor", _selectedAccentColor);
+		// Store in-session only (per requirements)
+		AccentColorSession.SetColor(_selectedAccentColor);
 		SyncColorPaletteSelection(color);
 		
 		// Apply accent color to footer immediately
@@ -206,12 +198,8 @@ public partial class SettingsPage : ContentPage
 				_selectedAccentColor = fullHex;
 				SelectedColorBorder.BackgroundColor = color;
 				
-				// Apply to system
-				if (!string.IsNullOrEmpty(_currentUserId))
-				{
-					Preferences.Set($"AccentColor_{_currentUserId}", _selectedAccentColor);
-				}
-				Preferences.Set("AccentColor", _selectedAccentColor);
+				// Store in-session only
+				AccentColorSession.SetColor(_selectedAccentColor);
 				
 				ApplyAccentColorToFooter(_selectedAccentColor);
 				RefreshNavigationBar();

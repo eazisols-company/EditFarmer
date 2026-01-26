@@ -2,6 +2,8 @@ using CarrotDownload.Auth.Interfaces;
 using CarrotDownload.Maui.Helpers;
 using CarrotDownload.Maui.Services;
 using CarrotDownload.Maui.Controls;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace CarrotDownload.Maui.Views;
 
@@ -126,6 +128,12 @@ public partial class DashboardPage : ContentPage
 		// File path storage
 		string selectedFilePath = null;
 		
+		// Create pair early so it's available in event handlers
+		var pair = new ProgrammingFilePair
+		{
+			Container = pairContainer
+		};
+		
 		// Drag and Drop File Area
 		var fileDropBorder = new Border
 		{
@@ -178,14 +186,6 @@ public partial class DashboardPage : ContentPage
 		dropGesture.DragOver += (s, e) =>
 		{
 			e.AcceptedOperation = DataPackageOperation.Copy;
-#if WINDOWS
-			if (e.PlatformArgs?.DragEventArgs != null)
-			{
-				e.PlatformArgs.DragEventArgs.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
-				e.PlatformArgs.DragEventArgs.DragUIOverride.IsCaptionVisible = true;
-				e.PlatformArgs.DragEventArgs.DragUIOverride.Caption = "Drop to select file";
-			}
-#endif
 			fileDropBorder.Stroke = Color.FromArgb("#2196F3");
 			fileDropBorder.BackgroundColor = Color.FromArgb("#e3f2fd");
 		};
@@ -204,19 +204,7 @@ public partial class DashboardPage : ContentPage
 			try
 			{
 				string firstPath = null;
-#if WINDOWS
-				if (e.PlatformArgs?.DragEventArgs?.DataView != null)
-				{
-					var dataView = e.PlatformArgs.DragEventArgs.DataView;
-					if (dataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
-					{
-						var items = await dataView.GetStorageItemsAsync();
-						var firstItem = items.FirstOrDefault();
-						if (firstItem != null) firstPath = firstItem.Path;
-					}
-				}
-#endif
-				if (string.IsNullOrEmpty(firstPath) && e.Data.Properties.ContainsKey("FileNames"))
+				if (e.Data.Properties.ContainsKey("FileNames"))
 				{
 					var filenames = e.Data.Properties["FileNames"] as IEnumerable<string>;
 					firstPath = filenames?.FirstOrDefault();
@@ -225,6 +213,7 @@ public partial class DashboardPage : ContentPage
 				if (!string.IsNullOrEmpty(firstPath))
 				{
 					selectedFilePath = firstPath;
+					pair.FilePath = firstPath; // Update pair immediately when file is selected
 					fileLabel.Text = $"✓ Selected: {Path.GetFileName(firstPath)}";
 					fileLabel.TextColor = Color.FromArgb("#28a745");
 					
@@ -238,7 +227,7 @@ public partial class DashboardPage : ContentPage
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Error dropping file: {ex.Message}");
+				await NotificationService.ShowError("We couldn't add that file. Please try again.");
 			}
 		};
 		fileDropBorder.GestureRecognizers.Add(dropGesture);
@@ -264,6 +253,7 @@ public partial class DashboardPage : ContentPage
 				if (result != null)
 				{
 					selectedFilePath = result.FullPath;
+					pair.FilePath = result.FullPath; // Update pair immediately when file is selected
 					fileLabel.Text = $"✓ Selected: {Path.GetFileName(result.FullPath)}";
 					fileLabel.TextColor = Color.FromArgb("#28a745");
 					
@@ -277,7 +267,7 @@ public partial class DashboardPage : ContentPage
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Error selecting file: {ex.Message}");
+				await NotificationService.ShowError("We couldn't select that file. Please try again.");
 			}
 		};
 		fileDropBorder.GestureRecognizers.Add(tapGesture);
@@ -321,16 +311,23 @@ public partial class DashboardPage : ContentPage
 
 		pairContainer.Children.Add(slotBorder);
 
-		// Store reference (no outer border)
-		var pair = new ProgrammingFilePair
-		{
-			Container = pairContainer // Direct container, no border wrapper
-		};
-
 		// Update pair when slot changes
 		slotEntry.TextChanged += (s, e) =>
 		{
-			pair.SlotLetter = e.NewTextValue?.Trim().ToLower();
+			var trimmedValue = e.NewTextValue?.Trim() ?? "";
+			// Check for uppercase letters
+			if (!string.IsNullOrEmpty(trimmedValue) && trimmedValue.Any(char.IsUpper))
+			{
+				// Show error and clear the entry
+				MainThread.BeginInvokeOnMainThread(async () =>
+				{
+					await NotificationService.ShowError("Please use lowercase letters (a-z) for slots. Capital letters aren't allowed.");
+					slotEntry.Text = "";
+					pair.SlotLetter = "";
+				});
+				return;
+			}
+			pair.SlotLetter = trimmedValue.ToLower();
 			pair.FilePath = selectedFilePath;
 		};
 
@@ -342,26 +339,40 @@ public partial class DashboardPage : ContentPage
 	private async void OnAddSlotClicked(object sender, EventArgs e)
 	{
 		// Validate current pairs before adding new one
+		// Only check pairs that have files (slots are optional)
 		foreach (var pair in _programmingFilePairs)
 		{
-			if (string.IsNullOrEmpty(pair.FilePath))
+			// If a pair has a slot but no file, that's an issue
+			if (!string.IsNullOrEmpty(pair.SlotLetter?.Trim()) && string.IsNullOrEmpty(pair.FilePath))
 			{
-				await NotificationService.ShowError("Please select a file for all existing slots before adding a new one");
+				await NotificationService.ShowError("Please add a file to the current slot before creating a new one.");
 				return;
 			}
 
-			if (string.IsNullOrEmpty(pair.SlotLetter) || pair.SlotLetter.Length != 1 || pair.SlotLetter[0] < 'a' || pair.SlotLetter[0] > 'z')
+			// Slot is optional here; if provided, validate format.
+			var slotOriginal = pair.SlotLetter?.Trim() ?? "";
+			// Check for uppercase letters
+			if (!string.IsNullOrEmpty(slotOriginal) && slotOriginal.Any(char.IsUpper))
 			{
-				await NotificationService.ShowError("Please enter a valid slot (a-z) for all existing slots");
+				await NotificationService.ShowError("Please use lowercase letters (a-z) for slots. Capital letters aren't allowed.");
+				return;
+			}
+			var slot = slotOriginal.ToLower();
+			if (!string.IsNullOrEmpty(slot) && (slot.Length != 1 || slot[0] < 'a' || slot[0] > 'z'))
+			{
+				await NotificationService.ShowError("Slots should be a single letter from a to z.");
 				return;
 			}
 		}
 
-		// Check for duplicate slots
-		var slots = _programmingFilePairs.Select(p => p.SlotLetter).ToList();
+		// Check for duplicate slots (ignoring empty)
+		var slots = _programmingFilePairs
+			.Select(p => p.SlotLetter?.Trim().ToLower() ?? "")
+			.Where(s => !string.IsNullOrEmpty(s))
+			.ToList();
 		if (slots.Count != slots.Distinct().Count())
 		{
-			await NotificationService.ShowError("Duplicate slots detected. Each slot must be unique");
+			await NotificationService.ShowError("Each slot letter needs to be unique. Please check for duplicates.");
 			return;
 		}
 
@@ -381,37 +392,60 @@ public partial class DashboardPage : ContentPage
 		string programTitle = ProgramTitleEntry.Text?.Trim() ?? "";
 		if (string.IsNullOrEmpty(programTitle))
 		{
-			await NotificationService.ShowError("Please enter a program title");
+			await NotificationService.ShowError("Don't forget to add a title for your program!");
 			return;
 		}
 
 		if (_programmingFilePairs.Count == 0)
 		{
-			await NotificationService.ShowError("Please add at least one file with a slot");
+			await NotificationService.ShowError("You need to add at least one file to continue.");
 			return;
 		}
 
-		// Validate all pairs
-		foreach (var pair in _programmingFilePairs)
+		// Filter out empty pairs (no file and no slot) and validate remaining pairs
+		var validPairs = _programmingFilePairs
+			.Where(p => !string.IsNullOrEmpty(p.FilePath) || !string.IsNullOrEmpty(p.SlotLetter?.Trim()))
+			.ToList();
+
+		if (validPairs.Count == 0)
+		{
+			await NotificationService.ShowError("You need to add at least one file to continue.");
+			return;
+		}
+
+		// Validate all pairs that have files
+		foreach (var pair in validPairs)
 		{
 			if (string.IsNullOrEmpty(pair.FilePath))
 			{
-				await NotificationService.ShowError("Please select a file for all slots");
+				await NotificationService.ShowError("Each entry needs a file. Please add one to continue.");
 				return;
 			}
 
-			if (string.IsNullOrEmpty(pair.SlotLetter) || pair.SlotLetter.Length != 1 || pair.SlotLetter[0] < 'a' || pair.SlotLetter[0] > 'z')
+			// Slot is optional; if provided, validate format.
+			var slotOriginal = pair.SlotLetter?.Trim() ?? "";
+			// Check for uppercase letters
+			if (!string.IsNullOrEmpty(slotOriginal) && slotOriginal.Any(char.IsUpper))
 			{
-				await NotificationService.ShowError("Please enter valid slots (a-z) for all files");
+				await NotificationService.ShowError("Please use lowercase letters (a-z) for slots. Capital letters aren't allowed.");
+				return;
+			}
+			var slot = slotOriginal.ToLower();
+			if (!string.IsNullOrEmpty(slot) && (slot.Length != 1 || slot[0] < 'a' || slot[0] > 'z'))
+			{
+				await NotificationService.ShowError("Slots should be a single letter from a to z.");
 				return;
 			}
 		}
 
-		// Check for duplicate slots ONLY within current programming
-		var slots = _programmingFilePairs.Select(p => p.SlotLetter).ToList();
+		// Check for duplicate slots ONLY within current programming (ignoring empty)
+		var slots = _programmingFilePairs
+			.Select(p => p.SlotLetter?.Trim().ToLower() ?? "")
+			.Where(s => !string.IsNullOrEmpty(s))
+			.ToList();
 		if (slots.Count != slots.Distinct().Count())
 		{
-			await NotificationService.ShowError("Duplicate slots detected. Each slot must be unique within this programming");
+			await NotificationService.ShowError("Each slot letter needs to be unique. Please check for duplicates.");
 			return;
 		}
 
@@ -419,21 +453,21 @@ public partial class DashboardPage : ContentPage
 		var currentUser = await _authService.GetCurrentUserAsync();
 		if (currentUser == null)
 		{
-			await NotificationService.ShowError("User not authenticated");
+			await NotificationService.ShowError("Please log in to continue.");
 			return;
 		}
 
 		try
 		{
-			// Save all pairs to database (use original paths)
-			foreach (var pair in _programmingFilePairs)
+			// Save all valid pairs to database (use original paths)
+			foreach (var pair in validPairs)
 			{
 				var programmingFile = new Database.Models.ProgrammingFileModel
 				{
 					ProgramTitle = programTitle,
 					FileName = Path.GetFileName(pair.FilePath),
 					FilePath = pair.FilePath, // Use Original Path
-					SlotPosition = pair.SlotLetter,
+					SlotPosition = pair.SlotLetter?.Trim().ToLower() ?? "",
 					IsPrivate = ProgramPrivateRadio.IsChecked,
 					UserId = currentUser.Id,
 					CreatedAt = DateTime.UtcNow
@@ -442,7 +476,7 @@ public partial class DashboardPage : ContentPage
 				await _mongoService.CreateProgrammingFileAsync(programmingFile);
 			}
 
-			await NotificationService.ShowSuccess($"Programming '{programTitle}' uploaded with {_programmingFilePairs.Count} files");
+			await NotificationService.ShowSuccess($"Success! '{programTitle}' has been uploaded with {validPairs.Count} file(s).");
 
 			// Reset
 			ProgramTitleEntry.Text = "";
@@ -452,7 +486,7 @@ public partial class DashboardPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to upload: {ex.Message}");
+			await NotificationService.ShowError("We couldn't upload your files. Please try again.");
 		}
 	}
 
@@ -473,55 +507,78 @@ public partial class DashboardPage : ContentPage
 			};
 
 			var results = await FilePicker.Default.PickMultipleAsync(options);
-			if (results != null && results.Any())
+			if (results == null || !results.Any())
+				return;
+
+			var filePaths = results.Select(r => r.FullPath).ToList();
+
+			int index = 1;
+			foreach (var filePath in filePaths)
 			{
-				foreach (var result in results)
+				AddToSelectedFilesSync(filePath, index++);
+			}
+
+			foreach (var filePath in filePaths)
+			{
+				var path = filePath;
+				_ = Task.Run(async () =>
 				{
-					await AddToSelectedFiles(result.FullPath);
-				}
+					var file = SelectedFiles.FirstOrDefault(f => f.FilePath == path);
+					if (file != null)
+					{
+						var thumb = await GenerateThumbnailForFile(path);
+						if (thumb != null)
+						{
+							MainThread.BeginInvokeOnMainThread(() =>
+							{
+								file.Thumbnail = thumb;
+							});
+						}
+					}
+				});
 			}
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Error selecting files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't select those files. Please try again.");
 		}
 	}
 
-	private async Task AddToSelectedFiles(string filePath)
+	private void AddToSelectedFilesSync(string filePath, int index = -1)
 	{
 		if (SelectedFiles.Any(f => f.FilePath == filePath)) return;
 
+		int fileIndex = index > 0 ? index : SelectedFiles.Count + 1;
+
 		var newFile = new SelectedFileModel
 		{
-			Index = SelectedFiles.Count + 1,
+			Index = fileIndex,
 			FileName = Path.GetFileName(filePath),
 			FilePath = filePath,
 			FileSize = GetFileSize(filePath)
 		};
 
 		SelectedFiles.Add(newFile);
+	}
 
-		// Generate thumbnail asynchronously
-		var thumb = await GenerateThumbnailForFile(filePath);
-		if (thumb != null)
+	private async Task AddToSelectedFiles(string filePath)
+	{
+		AddToSelectedFilesSync(filePath);
+
+		var file = SelectedFiles.FirstOrDefault(f => f.FilePath == filePath);
+		if (file != null)
 		{
-			newFile.Thumbnail = thumb;
+			var thumb = await GenerateThumbnailForFile(filePath);
+			if (thumb != null)
+			{
+				file.Thumbnail = thumb;
+			}
 		}
 	}
 
 	private void OnDragOver(object sender, DragEventArgs e)
 	{
 		e.AcceptedOperation = DataPackageOperation.Copy;
-
-#if WINDOWS
-        if (e.PlatformArgs?.DragEventArgs != null)
-        {
-            e.PlatformArgs.DragEventArgs.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
-            e.PlatformArgs.DragEventArgs.DragUIOverride.IsCaptionVisible = true;
-            e.PlatformArgs.DragEventArgs.DragUIOverride.Caption = "Drop to add files";
-        }
-#endif
-
 		if (sender is Border border)
 		{
 			border.Stroke = Color.FromArgb("#2196F3");
@@ -545,54 +602,46 @@ public partial class DashboardPage : ContentPage
 		try
 		{
 			var paths = new List<string>();
-
-#if WINDOWS
-            if (e.PlatformArgs?.DragEventArgs?.DataView != null)
-            {
-                var dataView = e.PlatformArgs.DragEventArgs.DataView;
-                if (dataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
-                {
-                    var items = await dataView.GetStorageItemsAsync();
-                    foreach (var item in items)
-                    {
-                        if (!string.IsNullOrEmpty(item.Path))
-                        {
-                            paths.Add(item.Path);
-                        }
-                    }
-                }
-                else if (e.Data.Properties.ContainsKey("FileNames"))
-                {
-                    // Fallback to properties if StorageItems fails
-                    var fileNames = e.Data.Properties["FileNames"] as IEnumerable<string>;
-                    if (fileNames != null) paths.AddRange(fileNames);
-                }
-            }
-#else
-            // Other platforms fallback (if applicable)
-            if (e.Data.Properties.ContainsKey("FileNames"))
-            {
-                var fileNames = e.Data.Properties["FileNames"] as IEnumerable<string>;
-                if (fileNames != null) paths.AddRange(fileNames);
-            }
-#endif
-
-			if (paths.Any())
+			if (e.Data.Properties.ContainsKey("FileNames"))
 			{
-				foreach (var path in paths)
-				{
-					await AddToSelectedFiles(path);
-				}
+				var fileNames = e.Data.Properties["FileNames"] as IEnumerable<string>;
+				if (fileNames != null)
+					paths.AddRange(fileNames);
 			}
-			else 
+
+			if (!paths.Any())
+				return;
+
+			var validPaths = paths.Where(p => !string.IsNullOrEmpty(p)).ToList();
+			int index = 1;
+			foreach (var path in validPaths)
 			{
-				System.Diagnostics.Debug.WriteLine("No file paths found in dropped data");
+				AddToSelectedFilesSync(path, index++);
+			}
+
+			foreach (var path in validPaths)
+			{
+				var filePath = path;
+				_ = Task.Run(async () =>
+				{
+					var file = SelectedFiles.FirstOrDefault(f => f.FilePath == filePath);
+					if (file != null)
+					{
+						var thumb = await GenerateThumbnailForFile(filePath);
+						if (thumb != null)
+						{
+							MainThread.BeginInvokeOnMainThread(() =>
+							{
+								file.Thumbnail = thumb;
+							});
+						}
+					}
+				});
 			}
 		}
 		catch (Exception ex)
 		{
-			System.Diagnostics.Debug.WriteLine($"Error in OnFilesDropped: {ex}");
-			await NotificationService.ShowError($"Error dropping files: {ex.Message}");
+			await NotificationService.ShowError("We couldn't add those files. Please try again.");
 		}
 	}
 
@@ -738,7 +787,7 @@ public partial class DashboardPage : ContentPage
 	private async void OnCheckoutClicked(object sender, EventArgs e)
 	{
 		// Navigate to checkout page (to be created)
-		await NotificationService.ShowInfo("Checkout page coming soon!");
+		await NotificationService.ShowInfo("The checkout feature is coming soon!");
 	}
 
 	private async void OnAuctionClicked(object sender, EventArgs e)
@@ -749,7 +798,7 @@ public partial class DashboardPage : ContentPage
 	private async void OnSettingsClicked(object sender, EventArgs e)
 	{
 		// Navigate to settings page (to be created)
-		await NotificationService.ShowInfo("Settings page coming soon!");
+		await NotificationService.ShowInfo("Settings are coming soon!");
 	}
 
 	private async void OnProgrammingClicked(object sender, TappedEventArgs e)
@@ -774,12 +823,12 @@ public partial class DashboardPage : ContentPage
 		var title = ProgramTitleEntry.Text;
 		if (string.IsNullOrWhiteSpace(title))
 		{
-			await NotificationService.ShowError("Please enter a program title");
+			await NotificationService.ShowError("Don't forget to add a title for your program!");
 			return;
 		}
 
 		var isPrivate = ProgramPrivateRadio.IsChecked;
-		await NotificationService.ShowInfo($"Uploading program: {title} ({(isPrivate ? "Private" : "Public")})");
+		await NotificationService.ShowInfo($"Uploading your {(isPrivate ? "private" : "public")} program: {title}");
 	}
 
 	private async void OnUploadProjectClicked(object sender, EventArgs e)
@@ -787,13 +836,13 @@ public partial class DashboardPage : ContentPage
 		var title = ProjectTitleEntry.Text;
 		if (string.IsNullOrWhiteSpace(title))
 		{
-			await NotificationService.ShowError("Please enter a project title");
+			await NotificationService.ShowError("Don't forget to add a title for your project!");
 			return;
 		}
 
 		if (SelectedFiles.Count == 0)
 		{
-			await NotificationService.ShowError("Please select at least one file to upload");
+			await NotificationService.ShowError("Please select at least one file to get started.");
 			return;
 		}
 
@@ -804,12 +853,11 @@ public partial class DashboardPage : ContentPage
 			// Generate unique project ID
 			var projectId = Guid.NewGuid().ToString("N").Substring(0, 8);
 			
-			// Use original paths
-			var savedFilePaths = new List<string>();
-			foreach (var file in SelectedFiles)
-			{
-				savedFilePaths.Add(file.FilePath);
-			}
+			// Use original paths - ensure we iterate in Index order
+			var savedFilePaths = SelectedFiles
+				.OrderBy(f => f.Index)
+				.Select(f => f.FilePath)
+				.ToList();
 
 			// Get current user ID
 			var currentUser = await _authService.GetCurrentUserAsync();
@@ -843,11 +891,11 @@ public partial class DashboardPage : ContentPage
 			ProjectTitleEntry.Text = string.Empty;
 			SelectedFiles.Clear();
 
-			await NotificationService.ShowSuccess($"Project '{title}' created successfully!");
+			await NotificationService.ShowSuccess($"Awesome! Your project '{title}' has been created.");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to create project: {ex.Message}");
+			await NotificationService.ShowError("We couldn't create your project. Please try again.");
 		}
 	}
 
@@ -888,20 +936,14 @@ public partial class DashboardPage : ContentPage
 				// 	Directory.Delete(project.StoragePath, recursive: true);
 				// }
 
-				// Remove from UI list
-				Projects.Remove(project);
-				
-				// Re-index
-				for (int i = 0; i < Projects.Count; i++)
-				{
-					Projects[i].Index = i + 1;
-				}
+				// Refresh list from database to ensure sync
+				await LoadProjectsFromDatabase();
 
-				await NotificationService.ShowSuccess($"Project '{project.Name}' deleted successfully");
+				await NotificationService.ShowSuccess($"'{project.Name}' has been deleted.");
 			}
 			catch (Exception ex)
 			{
-				await NotificationService.ShowError($"Failed to delete project: {ex.Message}");
+				await NotificationService.ShowError("We couldn't delete that project. Please try again.");
 			}
 		}
 	}
@@ -922,13 +964,13 @@ public partial class DashboardPage : ContentPage
 		var title = PlaylistTitleEntry.Text;
 		if (string.IsNullOrWhiteSpace(title))
 		{
-			await NotificationService.ShowError("Please enter a playlist title");
+			await NotificationService.ShowError("Don't forget to add a title for your playlist!");
 			return;
 		}
 
 		if (SelectedFiles.Count == 0)
 		{
-			await NotificationService.ShowError("Please select at least one file to upload");
+			await NotificationService.ShowError("Please select at least one file to get started.");
 			return;
 		}
 
@@ -954,9 +996,10 @@ public partial class DashboardPage : ContentPage
 			// Save Project to DB
 			await _mongoService.CreateProjectAsync(project);
 
-			// 3. Process files as PLAYLIST items
-			int slotNumber = 0;
-			foreach (var file in SelectedFiles)
+			// 3. Process files as PLAYLIST items in Index order
+			//    Do NOT auto-assign slot letters. Slots should only be set explicitly later.
+			var orderedFiles = SelectedFiles.OrderBy(f => f.Index).ToList();
+			foreach (var file in orderedFiles)
 			{
 				// Create Playlist Entry linked to this Project (Using Original Path)
 				var playlistFile = new CarrotDownload.Database.Models.PlaylistModel
@@ -964,13 +1007,12 @@ public partial class DashboardPage : ContentPage
 					ProjectId = projectId, // Link to the new Project
 					FileName = Path.GetFileName(file.FilePath),
 					FilePath = file.FilePath, // Original Path
-					SlotPosition = ((char)('a' + slotNumber)).ToString(),
+					SlotPosition = string.Empty, // No auto slot; user can set it manually later
 					UserId = userId,
 					CreatedAt = DateTime.UtcNow
 				};
 
 				await _mongoService.CreatePlaylistAsync(playlistFile);
-				slotNumber++;
 			}
 
 			// 4. Update UI - Add to Projects list so it's visible immediately
@@ -984,13 +1026,14 @@ public partial class DashboardPage : ContentPage
 
 			// Clear inputs
 			PlaylistTitleEntry.Text = string.Empty;
+			var fileCount = SelectedFiles.Count;
 			SelectedFiles.Clear();
 
-			await NotificationService.ShowSuccess($"Project '{title}' created with {slotNumber} playlist file(s)!");
+			await NotificationService.ShowSuccess($"Great! '{title}' has been created with {fileCount} file(s).");
 		}
 		catch (Exception ex)
 		{
-			await NotificationService.ShowError($"Failed to create playlist project: {ex.Message}");
+			await NotificationService.ShowError("We couldn't create your playlist. Please try again.");
 		}
 	}
 
@@ -1053,4 +1096,49 @@ public class ProgrammingFileModel : System.ComponentModel.INotifyPropertyChanged
 	public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 	protected void OnPropertyChanged(string name) => 
 		PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
+// Natural string comparer for sorting filenames (handles numbers correctly)
+// Example: "barn1", "barn2", "barn10" instead of "barn1", "barn10", "barn2"
+public class NaturalStringComparer : IComparer<string>
+{
+	public int Compare(string? x, string? y)
+	{
+		if (x == null && y == null) return 0;
+		if (x == null) return -1;
+		if (y == null) return 1;
+
+		x = x.ToLowerInvariant();
+		y = y.ToLowerInvariant();
+
+		int i = 0, j = 0;
+		while (i < x.Length && j < y.Length)
+		{
+			if (char.IsDigit(x[i]) && char.IsDigit(y[j]))
+			{
+				int numX = 0, numY = 0;
+				while (i < x.Length && char.IsDigit(x[i]))
+				{
+					numX = numX * 10 + (x[i] - '0');
+					i++;
+				}
+				while (j < y.Length && char.IsDigit(y[j]))
+				{
+					numY = numY * 10 + (y[j] - '0');
+					j++;
+				}
+				if (numX != numY)
+					return numX.CompareTo(numY);
+			}
+			else
+			{
+				int cmp = x[i].CompareTo(y[j]);
+				if (cmp != 0)
+					return cmp;
+				i++;
+				j++;
+			}
+		}
+		return x.Length.CompareTo(y.Length);
+	}
 }

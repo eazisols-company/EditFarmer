@@ -1,10 +1,15 @@
-﻿namespace CarrotDownload.Maui;
+namespace CarrotDownload.Maui;
+
+using CarrotDownload.Maui.Services;
 
 public partial class App : Application
 {
 	public App()
 	{
 		InitializeComponent();
+
+		// Reset accent color to white on every app launch (session-only color)
+		AccentColorSession.Reset();
 
 #if WINDOWS
 		// Universal Fix for Windows: Prevent automatic focus jumping to Entry fields.
