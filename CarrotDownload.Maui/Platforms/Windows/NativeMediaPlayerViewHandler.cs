@@ -101,40 +101,105 @@ public class NativeMediaPlayerViewHandler : ViewHandler<NativeMediaPlayerView, M
 
 	void UpdateSource()
 	{
-		if (PlatformView is null)
+		try
 		{
-			return;
+			if (PlatformView is null || VirtualView is null)
+			{
+				return;
+			}
+
+			var path = VirtualView.FilePath;
+			if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+			{
+				// Clear existing player if file doesn't exist
+				if (mediaPlayer != null)
+				{
+					try
+					{
+						PlatformView.SetMediaPlayer(null);
+						mediaPlayer.Dispose();
+						mediaPlayer = null;
+					}
+					catch
+					{
+						// Ignore disposal errors
+					}
+				}
+				return;
+			}
+
+			// Dispose existing player safely
+			if (mediaPlayer != null)
+			{
+				try
+				{
+					mediaPlayer.PlaybackSession.PlaybackStateChanged -= OnPlaybackStateChanged;
+					PlatformView.SetMediaPlayer(null);
+					mediaPlayer.Dispose();
+				}
+				catch
+				{
+					// Ignore disposal errors
+				}
+				finally
+				{
+					mediaPlayer = null;
+				}
+			}
+
+			// Create new player with error handling
+			mediaPlayer = new MediaPlayer();
+			mediaPlayer.Source = MediaSource.CreateFromUri(new Uri(path));
+			mediaPlayer.PlaybackSession.PlaybackStateChanged += OnPlaybackStateChanged;
+
+			PlatformView.SetMediaPlayer(mediaPlayer);
+
+			if (VirtualView.ShouldAutoPlay)
+			{
+				mediaPlayer.Play();
+			}
 		}
-
-		var path = VirtualView.FilePath;
-		if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+		catch (Exception ex)
 		{
-			return;
-		}
-
-		mediaPlayer?.Dispose();
-		mediaPlayer = new MediaPlayer();
-		mediaPlayer.Source = MediaSource.CreateFromUri(new Uri(path));
-		
-		mediaPlayer.PlaybackSession.PlaybackStateChanged += OnPlaybackStateChanged;
-
-		PlatformView.SetMediaPlayer(mediaPlayer);
-
-		if (VirtualView.ShouldAutoPlay)
-		{
-			mediaPlayer.Play();
+			System.Diagnostics.Debug.WriteLine($"[MediaPlayer] Error updating source: {ex.Message}");
+			// Clean up on error
+			if (mediaPlayer != null)
+			{
+				try
+				{
+					mediaPlayer.Dispose();
+				}
+				catch
+				{
+					// Ignore
+				}
+				finally
+				{
+					mediaPlayer = null;
+				}
+			}
 		}
 	}
 
 	void OnPlaybackStateChanged(MediaPlaybackSession sender, object args)
 	{
-		if (VirtualView != null)
+		try
 		{
-			// Marshal to UI thread
-			PlatformView.DispatcherQueue.TryEnqueue(() => 
+			if (VirtualView != null && PlatformView != null && PlatformView.DispatcherQueue != null)
 			{
-				VirtualView.IsPlaying = sender.PlaybackState == MediaPlaybackState.Playing;
-			});
+				// Marshal to UI thread
+				PlatformView.DispatcherQueue.TryEnqueue(() => 
+				{
+					if (VirtualView != null)
+					{
+						VirtualView.IsPlaying = sender.PlaybackState == MediaPlaybackState.Playing;
+					}
+				});
+			}
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[MediaPlayer] Error in playback state changed: {ex.Message}");
 		}
 	}
 }

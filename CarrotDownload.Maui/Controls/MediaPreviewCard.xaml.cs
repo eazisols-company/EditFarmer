@@ -54,8 +54,10 @@ public partial class MediaPreviewCard : ContentView
 
 	static void OnFilePathChanged(BindableObject bindable, object oldValue, object newValue)
 	{
-		var card = (MediaPreviewCard)bindable;
-		var path = (string)newValue;
+		if (bindable is not MediaPreviewCard card)
+			return;
+
+		var path = newValue as string;
 		
 		if (!string.IsNullOrWhiteSpace(path))
 		{
@@ -65,14 +67,35 @@ public partial class MediaPreviewCard : ContentView
 #if WINDOWS
 				try
 				{
-					if (card.PreviewPlayer != null)
+					// Additional null check before setting FilePath
+					if (card.PreviewPlayer != null && !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
 					{
 						card.PreviewPlayer.FilePath = path;
 					}
 				}
+				catch (Exception ex)
+				{
+					System.Diagnostics.Debug.WriteLine($"[MediaPreviewCard] Error setting FilePath: {ex.Message}");
+				}
+#endif
+			});
+		}
+		else
+		{
+			// Clear the player if path is null/empty
+			card.Dispatcher.Dispatch(() =>
+			{
+#if WINDOWS
+				try
+				{
+					if (card.PreviewPlayer != null)
+					{
+						card.PreviewPlayer.FilePath = string.Empty;
+					}
+				}
 				catch
 				{
-					// Control might not be initialized yet
+					// Ignore errors when clearing
 				}
 #endif
 			});

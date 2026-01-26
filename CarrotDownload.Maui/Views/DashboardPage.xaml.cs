@@ -512,7 +512,7 @@ public partial class DashboardPage : ContentPage
 
 			var filePaths = results.Select(r => r.FullPath).ToList();
 
-			int index = 1;
+			int index = SelectedFiles.Count + 1;
 			foreach (var filePath in filePaths)
 			{
 				AddToSelectedFilesSync(filePath, index++);
@@ -613,7 +613,7 @@ public partial class DashboardPage : ContentPage
 				return;
 
 			var validPaths = paths.Where(p => !string.IsNullOrEmpty(p)).ToList();
-			int index = 1;
+			int index = SelectedFiles.Count + 1;
 			foreach (var path in validPaths)
 			{
 				AddToSelectedFilesSync(path, index++);

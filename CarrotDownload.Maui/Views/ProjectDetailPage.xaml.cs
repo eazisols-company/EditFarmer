@@ -200,23 +200,59 @@ public partial class ProjectDetailPage : ContentPage
 
 	private async Task AddToTempFiles(string filePath)
 	{
-		if (TempFiles.Any(f => f.FilePath == filePath)) return;
-
-		var newTempFile = new ProjectFileModel
+		try
 		{
-			FileName = Path.GetFileName(filePath),
-			FilePath = filePath
-		};
+			// Validate file exists
+			if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+			{
+				await NotificationService.ShowError("The selected file doesn't exist or has been moved.");
+				return;
+			}
 
-		TempFiles.Add(newTempFile);
-		TempFilesCollectionView.IsVisible = true;
-		UploadFileButton.IsEnabled = true;
+			// Check for duplicates
+			if (TempFiles.Any(f => string.Equals(f.FilePath, filePath, StringComparison.OrdinalIgnoreCase)))
+			{
+				return;
+			}
 
-		// Generate thumbnail
-		var thumb = await GenerateThumbnailForFile(filePath);
-		if (thumb != null)
+			var newTempFile = new ProjectFileModel
+			{
+				FileName = Path.GetFileName(filePath),
+				FilePath = filePath
+			};
+
+			TempFiles.Add(newTempFile);
+			TempFilesCollectionView.IsVisible = true;
+			UploadFileButton.IsEnabled = true;
+
+			// Generate thumbnail asynchronously with error handling
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					var thumb = await GenerateThumbnailForFile(filePath);
+					if (thumb != null)
+					{
+						MainThread.BeginInvokeOnMainThread(() =>
+						{
+							// Double-check the file is still in TempFiles before updating
+							if (TempFiles.Contains(newTempFile))
+							{
+								newTempFile.Thumbnail = thumb;
+							}
+						});
+					}
+				}
+				catch (Exception ex)
+				{
+					System.Diagnostics.Debug.WriteLine($"[Thumbnail] Error generating thumbnail: {ex.Message}");
+				}
+			});
+		}
+		catch (Exception ex)
 		{
-			newTempFile.Thumbnail = thumb;
+			System.Diagnostics.Debug.WriteLine($"[AddToTempFiles] Error: {ex.Message}");
+			await NotificationService.ShowError("We couldn't add that file. Please try again.");
 		}
 	}
 
@@ -318,14 +354,21 @@ public partial class ProjectDetailPage : ContentPage
 	
 	private void OnRemoveTempFileClicked(object sender, TappedEventArgs e)
 	{
-		if (e.Parameter is ProjectFileModel file)
+		try
 		{
-			TempFiles.Remove(file);
-			if (TempFiles.Count == 0)
+			if (e.Parameter is ProjectFileModel file)
 			{
-				TempFilesCollectionView.IsVisible = false;
-				UploadFileButton.IsEnabled = false;
+				TempFiles.Remove(file);
+				if (TempFiles.Count == 0)
+				{
+					TempFilesCollectionView.IsVisible = false;
+					UploadFileButton.IsEnabled = false;
+				}
 			}
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[RemoveTemp] Error: {ex.Message}");
 		}
 	}
 
@@ -401,8 +444,8 @@ public partial class ProjectDetailPage : ContentPage
 					await _mongoService.UpdateProjectFilesAsync(_projectId, updatedFiles);
 				}
 
-				// Reload files
-				LoadProjectFiles();
+				// Reload files - MUST await to prevent race conditions
+				await LoadProjectFiles();
 
 				await NotificationService.ShowSuccess($"'{file.FileName}' has been removed from your project.");
 			}
