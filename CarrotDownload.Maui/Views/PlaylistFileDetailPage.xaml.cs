@@ -45,64 +45,25 @@ public partial class PlaylistFileDetailPage : ContentPage
 		SequencePositionLabel.Text = sequencePosition.ToString();
 		SlotPositionEntry.Text = slotPosition;
 
-		// Generate thumbnail
-		_ = GenerateThumbnail();
+		// Set up video preview card
+		VideoPreviewCard.FilePath = filePath;
+		VideoPreviewCard.FileName = fileName;
+		
+		// Get file size
+		if (File.Exists(filePath))
+		{
+			var fileInfo = new FileInfo(filePath);
+			string fileSizeText = fileInfo.Length < 1024 * 1024 
+				? $"{fileInfo.Length / 1024.0:F1} KB" 
+				: $"{fileInfo.Length / (1024.0 * 1024.0):F1} MB";
+			VideoPreviewCard.FileSize = fileSizeText;
+		}
 	}
 
-	private async Task GenerateThumbnail()
-	{
-		try
-		{
-			var ext = Path.GetExtension(_filePath).ToLower();
-			var isVideo = new[] { ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm" }.Contains(ext);
-			
-			if (isVideo)
-			{
-				var thumbPath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid():N}.jpg");
-				var generatedPath = await _ffmpegService.GenerateThumbnailAsync(_filePath, thumbPath, TimeSpan.FromSeconds(1));
-				
-				if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
-				{
-					FileThumbnailImage.Source = ImageSource.FromFile(generatedPath);
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			System.Diagnostics.Debug.WriteLine($"Error generating thumbnail: {ex.Message}");
-		}
-	}
 	
 	private async void OnBackClicked(object sender, EventArgs e)
 	{
 		await Navigation.PopAsync();
-	}
-	
-	private async void OnPlayVideoClicked(object sender, EventArgs e)
-	{
-		try
-		{
-			Console.WriteLine($"[DEBUG] Attempting to play file: {_filePath}");
-			Console.WriteLine($"[DEBUG] File exists: {File.Exists(_filePath)}");
-			
-			if (File.Exists(_filePath))
-			{
-				await Launcher.Default.OpenAsync(new OpenFileRequest
-				{
-					File = new ReadOnlyFile(_filePath)
-				});
-			}
-			else
-			{
-				await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
-			}
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine($"[DEBUG] Error playing file: {ex.Message}");
-			Console.WriteLine($"[DEBUG] Stack trace: {ex.StackTrace}");
-			await NotificationService.ShowError("We couldn't play that file. Please check that it exists.");
-		}
 	}
 	
 	private async void OnNotesClicked(object sender, EventArgs e)

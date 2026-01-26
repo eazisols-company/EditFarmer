@@ -39,6 +39,9 @@
 		<!-- Windows-specific settings -->
 		<WindowsPackageType>None</WindowsPackageType>
 		<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+
+		<!-- Allow builds when NuGet feed is temporarily unreachable (uses local cache). -->
+		<RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
 	</PropertyGroup>
 
 	<ItemGroup>

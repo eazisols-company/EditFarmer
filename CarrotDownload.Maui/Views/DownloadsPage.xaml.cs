@@ -160,45 +160,16 @@ public partial class DownloadsPage : ContentPage
 		contentLayout.Children.Add(fileSizeLabel);
 		contentLayout.Children.Add(exportedDateLabel);
 
-		// Video Preview Area - Smaller
-		var previewContainer = new Border
+		// Small Preview Player Card (like image)
+		var previewCard = new Controls.MediaPreviewCard
 		{
-			HeightRequest = 180, // Smaller preview
-			WidthRequest = 320,
-			StrokeShape = new RoundRectangle { CornerRadius = 6 },
-			BackgroundColor = Color.FromArgb("#1a1a1a"),
+			WidthRequest = 400,
 			Margin = new Thickness(0, 8),
 			HorizontalOptions = LayoutOptions.Start,
-			IsVisible = false 
+			IsVisible = false
 		};
 
-		var previewImage = new Image
-		{
-			Aspect = Aspect.AspectFill,
-			HorizontalOptions = LayoutOptions.Fill,
-			VerticalOptions = LayoutOptions.Fill
-		};
-
-		var playIcon = new Label
-		{
-			Text = "▶",
-			FontSize = 40,
-			TextColor = Colors.White,
-			HorizontalOptions = LayoutOptions.Center,
-			VerticalOptions = LayoutOptions.Center,
-			Opacity = 0.8
-		};
-
-		var previewGrid = new Grid();
-		previewGrid.Children.Add(previewImage);
-		previewGrid.Children.Add(playIcon);
-		previewContainer.Content = previewGrid;
-
-		var previewTap = new TapGestureRecognizer();
-		previewTap.Tapped += (s, e) => OnPlayVideoClicked(export.ZipFilePath);
-		previewContainer.GestureRecognizers.Add(previewTap);
-
-		contentLayout.Children.Add(previewContainer);
+		contentLayout.Children.Add(previewCard);
 
 		// Fetch Metadata and Thumbnail
 		_ = Task.Run(async () =>
@@ -241,10 +212,14 @@ public partial class DownloadsPage : ContentPage
 						fileSizeLabel.FormattedText.Spans.Add(new Span { Text = "File Size: ", FontAttributes = FontAttributes.Bold });
 						fileSizeLabel.FormattedText.Spans.Add(new Span { Text = fileSizeText });
 
+						// Set preview card data
+						previewCard.FilePath = export.ZipFilePath;
+						previewCard.FileName = System.IO.Path.GetFileName(export.ZipFilePath);
+						previewCard.FileSize = fileSizeText;
+						
 						if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
 						{
-							previewImage.Source = ImageSource.FromFile(generatedPath);
-							previewContainer.IsVisible = true;
+							previewCard.IsVisible = true;
 						}
 					});
 				}
@@ -336,10 +311,8 @@ public partial class DownloadsPage : ContentPage
 		{
 			if (File.Exists(filePath))
 			{
-				await Launcher.Default.OpenAsync(new OpenFileRequest
-				{
-					File = new ReadOnlyFile(filePath)
-				});
+				var encodedPath = Uri.EscapeDataString(filePath);
+				await Shell.Current.GoToAsync($"MediaPlayerPage?filePath={encodedPath}");
 			}
 			else
 			{

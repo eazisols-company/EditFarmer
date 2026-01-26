@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Controls.MediaPreviewCard">
+    
+    <Border BackgroundColor="#1a1a1a"
+            StrokeShape="RoundRectangle 6"
+            Padding="0">
+        <!-- Small Media Player -->
+        <Grid BackgroundColor="Black">
+            <!-- Windows Native Player -->
+            <controls:NativeMediaPlayerView x:Name="PreviewPlayer"
+                                           ShouldAutoPlay="False"
+                                           AreTransportControlsEnabled="True"
+                                           VerticalOptions="FillAndExpand"
+                                           HorizontalOptions="FillAndExpand">
+                <controls:NativeMediaPlayerView.IsVisible>
+                    <OnPlatform x:TypeArguments="x:Boolean">
+                        <On Platform="WinUI" Value="True"/>
+                        <On Platform="Android,iOS,MacCatalyst" Value="False"/>
+                    </OnPlatform>
+                </controls:NativeMediaPlayerView.IsVisible>
+            </controls:NativeMediaPlayerView>
+            
+            <!-- Fullscreen Button Overlay -->
+            <Border BackgroundColor="#000000"
+                   Opacity="0.7"
+                   StrokeShape="RoundRectangle 4"
+                   Padding="8,6"
+                   HorizontalOptions="End"
+                   VerticalOptions="Start"
+                   Margin="10"
+                   ZIndex="100">
+                <Border.IsVisible>
+                    <OnPlatform x:TypeArguments="x:Boolean">
+                        <On Platform="WinUI" Value="True"/>
+                        <On Platform="Android,iOS,MacCatalyst" Value="False"/>
+                    </OnPlatform>
+                </Border.IsVisible>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnFullscreenClicked"/>
+                </Border.GestureRecognizers>
+                <Label Text="⛶"
+                       FontSize="18"
+                       TextColor="White"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+            </Border>
+            
+            <!-- Non-Windows Fallback -->
+            <Grid x:Name="FallbackPlayer">
+                <Grid.IsVisible>
+                    <OnPlatform x:TypeArguments="x:Boolean">
+                        <On Platform="WinUI" Value="False"/>
+                        <On Platform="Android,iOS,MacCatalyst" Value="True"/>
+                    </OnPlatform>
+                </Grid.IsVisible>
+                <Image x:Name="ThumbnailImage"
+                      Aspect="AspectFill"
+                      Opacity="0.3"/>
+                <VerticalStackLayout HorizontalOptions="Center" 
+                                   VerticalOptions="Center" 
+                                   Spacing="8">
+                    <Label Text="▶"
+                          FontSize="40"
+                          TextColor="White"
+                          Opacity="0.8"/>
+                    <Button Text="Open in Player"
+                           BackgroundColor="#007bff"
+                           TextColor="White"
+                           FontSize="12"
+                           Padding="12,6"
+                           Clicked="OnOpenInPlayerClicked"/>
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+    </Border>
+</ContentView>

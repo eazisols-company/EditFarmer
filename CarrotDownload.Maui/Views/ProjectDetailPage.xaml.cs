@@ -424,10 +424,15 @@ public partial class ProjectDetailPage : ContentPage
 		{
 			try
 			{
-				await Launcher.Default.OpenAsync(new OpenFileRequest
+				if (File.Exists(filePath))
 				{
-					File = new ReadOnlyFile(filePath)
-				});
+					var encodedPath = Uri.EscapeDataString(filePath);
+					await Shell.Current.GoToAsync($"MediaPlayerPage?filePath={encodedPath}");
+				}
+				else
+				{
+					await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
+				}
 			}
 			catch (Exception ex)
 			{

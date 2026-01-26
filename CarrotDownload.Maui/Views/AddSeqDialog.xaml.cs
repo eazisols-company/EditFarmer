@@ -224,10 +224,15 @@ public partial class AddSeqDialog : ContentPage
 
 		try
 		{
-			await Launcher.Default.OpenAsync(new OpenFileRequest
+			if (File.Exists(_selectedFilePath))
 			{
-				File = new ReadOnlyFile(_selectedFilePath)
-			});
+				var encodedPath = Uri.EscapeDataString(_selectedFilePath);
+				await Shell.Current.GoToAsync($"MediaPlayerPage?filePath={encodedPath}");
+			}
+			else
+			{
+				await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
+			}
 		}
 		catch (Exception ex)
 		{

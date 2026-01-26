@@ -171,22 +171,10 @@
                                             
                                             <!-- Preview with Overlay X -->
                                             <Grid Grid.Column="1" HorizontalOptions="Start" VerticalOptions="Center">
-                                                <Border WidthRequest="240"
-                                                        HeightRequest="135"
-                                                        StrokeShape="RoundRectangle 8"
-                                                        Stroke="#e0e0e0"
-                                                        StrokeThickness="1"
-                                                        BackgroundColor="#f5f5f5">
-                                                    <Grid>
-                                                        <Label Text="📄" 
-                                                               FontSize="30" 
-                                                               HorizontalOptions="Center" 
-                                                               VerticalOptions="Center"
-                                                               Opacity="0.5"/>
-                                                        <Image Source="{Binding Thumbnail}"
-                                                               Aspect="AspectFill"/>
-                                                    </Grid>
-                                                </Border>
+                                                <controls:MediaPreviewCard FilePath="{Binding FilePath}"
+                                                                             FileName="{Binding FileName}"
+                                                                             FileSize="{Binding FileSize}"
+                                                                             WidthRequest="400"/>
 
                                                 <!-- Remove Button Overlay -->
                                                 <Border BackgroundColor="#ff5722"
@@ -348,22 +336,10 @@
 
                                             <!-- Preview with Overlay X -->
                                             <Grid Grid.Column="1" HorizontalOptions="Start" VerticalOptions="Center">
-                                                <Border WidthRequest="240"
-                                                        HeightRequest="135"
-                                                        StrokeShape="RoundRectangle 8"
-                                                        Stroke="#e0e0e0"
-                                                        StrokeThickness="1"
-                                                        BackgroundColor="#f5f5f5">
-                                                    <Grid>
-                                                        <Label Text="🎵" 
-                                                               FontSize="30" 
-                                                               HorizontalOptions="Center" 
-                                                               VerticalOptions="Center"
-                                                               Opacity="0.5"/>
-                                                        <Image Source="{Binding Thumbnail}"
-                                                               Aspect="AspectFill"/>
-                                                    </Grid>
-                                                </Border>
+                                                <controls:MediaPreviewCard FilePath="{Binding FilePath}"
+                                                                             FileName="{Binding FileName}"
+                                                                             FileSize="{Binding FileSize}"
+                                                                             WidthRequest="400"/>
 
                                                 <!-- Remove Button Overlay -->
                                                 <Border BackgroundColor="#ff5722"

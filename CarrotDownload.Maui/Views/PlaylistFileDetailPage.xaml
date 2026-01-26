@@ -34,32 +34,9 @@
                    HorizontalOptions="Center"/>
             
             <!-- Video Player -->
-            <Grid WidthRequest="640" HeightRequest="360" HorizontalOptions="Center">
-                <Border BackgroundColor="#1a1a1a"
-                        StrokeShape="RoundRectangle 8"
-                        HorizontalOptions="Fill"
-                        VerticalOptions="Fill">
-                    <Grid>
-                        <!-- Generated Thumbnail -->
-                        <Image x:Name="FileThumbnailImage"
-                               Aspect="AspectFill"
-                               Opacity="1"/>
-
-                        <Label Text="▶"
-                               FontSize="60"
-                               TextColor="White"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center"
-                               Opacity="0.7"/>
-                    </Grid>
-                </Border>
-                
-                <!-- Transparent Overlay Button for Click Handling -->
-                <Button BackgroundColor="Transparent"
-                        HorizontalOptions="Fill"
-                        VerticalOptions="Fill"
-                        Clicked="OnPlayVideoClicked"/>
-            </Grid>
+            <controls:MediaPreviewCard x:Name="VideoPreviewCard"
+                                         WidthRequest="700"
+                                         HorizontalOptions="Center"/>
             
             <!-- Notes Button -->
             <Button Text="Notes ▶"
@@ -153,3 +130,4 @@
         </Grid>
     </Grid>
 </ContentPage>
+

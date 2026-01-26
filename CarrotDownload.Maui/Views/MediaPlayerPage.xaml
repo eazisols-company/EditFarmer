@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:CarrotDownload.Maui.Controls"
+             x:Class="CarrotDownload.Maui.Views.MediaPlayerPage"
+             BackgroundColor="Black"
+             Shell.NavBarIsVisible="False">
+    
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Top Bar with Back Button and File Name -->
+        <Grid Grid.Row="0" 
+              BackgroundColor="#1a1a1a" 
+              Padding="10,5"
+              ColumnDefinitions="Auto,*">
+            <Button Grid.Column="0"
+                    Text="← Back"
+                    BackgroundColor="Transparent"
+                    TextColor="White"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    Clicked="OnBackClicked"
+                    HorizontalOptions="Start"
+                    Padding="10,5"/>
+            <Label x:Name="FileNameLabel"
+                   Grid.Column="1"
+                   Text=""
+                   TextColor="White"
+                   FontSize="16"
+                   FontAttributes="Bold"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Start"
+                   Margin="10,0,0,0"/>
+        </Grid>
+        
+        <!-- Media Player Area -->
+        <Grid Grid.Row="1" 
+              BackgroundColor="Black"
+              VerticalOptions="FillAndExpand">
+            
+            <!-- Error Message (Hidden by default) -->
+            <VerticalStackLayout x:Name="ErrorLayout"
+                                 IsVisible="False"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Spacing="20">
+                <Label Text="⚠️"
+                       FontSize="48"
+                       TextColor="White"
+                       HorizontalOptions="Center"/>
+                <Label x:Name="ErrorMessageLabel"
+                       Text=""
+                       FontSize="18"
+                       TextColor="White"
+                       HorizontalOptions="Center"
+                       HorizontalTextAlignment="Center"/>
+                <Button Text="Go Back"
+                        BackgroundColor="#007bff"
+                        TextColor="White"
+                        FontSize="16"
+                        FontAttributes="Bold"
+                        CornerRadius="4"
+                        Padding="20,10"
+                        Clicked="OnBackClicked"
+                        HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+            
+            <!-- Windows-only in-app player (Option B). Other platforms fallback to external open. -->
+            <ContentView>
+                <ContentView.Content>
+                    <OnPlatform x:TypeArguments="View">
+                        <On Platform="WinUI">
+                            <controls:NativeMediaPlayerView x:Name="NativePlayer"
+                                                            ShouldAutoPlay="False"
+                                                            VerticalOptions="FillAndExpand"
+                                                            HorizontalOptions="FillAndExpand"/>
+                        </On>
+                        <On Platform="Android,iOS,MacCatalyst">
+                            <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12">
+                                <Label Text="In-app playback is currently Windows-only."
+                                       TextColor="White"
+                                       FontSize="16"
+                                       HorizontalTextAlignment="Center"/>
+                                <Button Text="Open in default player"
+                                        BackgroundColor="#007bff"
+                                        TextColor="White"
+                                        Clicked="OnOpenExternalClicked"/>
+                            </VerticalStackLayout>
+                        </On>
+                    </OnPlatform>
+                </ContentView.Content>
+            </ContentView>
+        </Grid>
+        
+        <!-- Bottom Info Bar (Optional - can show duration, etc.) -->
+        <Grid Grid.Row="2" 
+              BackgroundColor="#1a1a1a" 
+              Padding="10,5"
+              IsVisible="False">
+            <!-- Can add additional info here if needed -->
+        </Grid>
+    </Grid>
+</ContentPage>

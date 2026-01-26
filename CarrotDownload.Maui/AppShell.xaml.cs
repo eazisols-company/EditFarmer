@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace CarrotDownload.Maui;
 
@@ -9,5 +9,6 @@ public partial class AppShell : Shell
 		InitializeComponent();
         Routing.RegisterRoute(nameof(Views.MediaProcessingPage), typeof(Views.MediaProcessingPage));
         Routing.RegisterRoute(nameof(Views.JobHistoryPage), typeof(Views.JobHistoryPage));
+        Routing.RegisterRoute(nameof(Views.MediaPlayerPage), typeof(Views.MediaPlayerPage));
 	}
 }

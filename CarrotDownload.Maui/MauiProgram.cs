@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using CommunityToolkit.Maui;
 
 namespace CarrotDownload.Maui;
@@ -16,6 +16,13 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 			});
+
+#if WINDOWS
+		builder.ConfigureMauiHandlers(handlers =>
+		{
+			handlers.AddHandler(typeof(CarrotDownload.Maui.Controls.NativeMediaPlayerView), typeof(CarrotDownload.Maui.Controls.NativeMediaPlayerViewHandler));
+		});
+#endif
 
 		// Register HTTP Client
 		builder.Services.AddHttpClient<CarrotDownload.Auth.Interfaces.IAuthService, CarrotDownload.Auth.Services.AuthService>(client =>
@@ -50,6 +57,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<Views.ProgrammingPage>();
 		builder.Services.AddTransient<Views.SequencePage>();
 		builder.Services.AddTransient<Views.SettingsPage>();
+		builder.Services.AddTransient<Views.MediaPlayerPage>();
 		
 		// Register Admin Pages
 		builder.Services.AddTransient<Views.AdminDashboardPage>();

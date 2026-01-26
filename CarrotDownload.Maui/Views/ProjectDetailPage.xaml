@@ -86,22 +86,9 @@
                                           ColumnSpacing="15">
                                         <!-- Preview with Overlay X -->
                                         <Grid Grid.Column="0" HorizontalOptions="Start" VerticalOptions="Center">
-                                            <Border WidthRequest="240"
-                                                    HeightRequest="135"
-                                                    StrokeShape="RoundRectangle 8"
-                                                    Stroke="#e0e0e0"
-                                                    StrokeThickness="1"
-                                                    BackgroundColor="#f5f5f5">
-                                                <Grid>
-                                                    <Label Text="📄" 
-                                                           FontSize="30" 
-                                                           HorizontalOptions="Center" 
-                                                           VerticalOptions="Center"
-                                                           Opacity="0.5"/>
-                                                    <Image Source="{Binding Thumbnail}"
-                                                           Aspect="AspectFill"/>
-                                                </Grid>
-                                            </Border>
+                                            <controls:MediaPreviewCard FilePath="{Binding FilePath}"
+                                                                         FileName="{Binding FileName}"
+                                                                         WidthRequest="400"/>
 
                                             <!-- Remove Button Overlay -->
                                             <Border BackgroundColor="#ff5722"
@@ -177,7 +164,7 @@
                                   ItemsSource="{Binding ProjectFiles}">
                         <CollectionView.ItemsLayout>
                             <GridItemsLayout Orientation="Vertical" 
-                                           Span="4"
+                                           Span="3"
                                            HorizontalItemSpacing="10"
                                            VerticalItemSpacing="10"/>
                         </CollectionView.ItemsLayout>
@@ -188,7 +175,7 @@
                                        StrokeShape="RoundRectangle 6"
                                        Stroke="#e0e0e0"
                                        StrokeThickness="1"
-                                       Padding="8">
+                                       Padding="4">
                                     <Border.Triggers>
                                         <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
                                             <Setter Property="Stroke" Value="#28a745" />
@@ -202,28 +189,15 @@
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnFileDoubleClicked" CommandParameter="{Binding .}"/>
                                     </Border.GestureRecognizers>
-                                    <VerticalStackLayout Spacing="6">
-                                        <Border BackgroundColor="#1a1a1a"
-                                               StrokeShape="RoundRectangle 4"
-                                               WidthRequest="160"
-                                               HeightRequest="90">
-                                            <Border.GestureRecognizers>
+                                    <VerticalStackLayout Spacing="4">
+                                        <controls:MediaPreviewCard FilePath="{Binding FilePath}"
+                                                                     FileName="{Binding FileName}"
+                                                                     WidthRequest="320"
+                                                                     HeightRequest="180">
+                                            <controls:MediaPreviewCard.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnPlayVideoClicked" CommandParameter="{Binding FilePath}"/>
-                                            </Border.GestureRecognizers>
-                                            <Grid>
-                                                <!-- Play Icon -->
-                                                <Label Text="▶"
-                                                       FontSize="30"
-                                                       TextColor="White"
-                                                       HorizontalOptions="Center"
-                                                       VerticalOptions="Center"
-                                                       Opacity="0.7"/>
-                                                
-                                                <!-- Generated Thumbnail -->
-                                                <Image Source="{Binding Thumbnail}"
-                                                       Aspect="AspectFill"/>
-                                            </Grid>
-                                        </Border>
+                                            </controls:MediaPreviewCard.GestureRecognizers>
+                                        </controls:MediaPreviewCard>
                                         
                                         <!-- Filename -->
                                         <Label Text="{Binding FileName}"
@@ -433,9 +407,9 @@
                                                StrokeShape="RoundRectangle 8"
                                                Stroke="#e0e0e0"
                                                StrokeThickness="1"
-                                               Padding="10"
+                                               Padding="0"
                                                Margin="7.5"
-                                               WidthRequest="215"
+                                               WidthRequest="360"
                                                ZIndex="1">
                                             <Border.Triggers>
                                                 <DataTrigger TargetType="Border" Binding="{Binding IsSwapSelected}" Value="True">
@@ -453,84 +427,58 @@
                                             
                                             <Grid>
                                                 <!-- Content Layer -->
-                                                <VerticalStackLayout Spacing="10">
-                                                    <Border BackgroundColor="#1a1a1a"
-                                                           StrokeShape="RoundRectangle 4"
-                                                           HeightRequest="110">
-                                                        <Border.GestureRecognizers>
-                                                            <TapGestureRecognizer Tapped="OnPlayVideoClicked" CommandParameter="{Binding FilePath}"/>
-                                                        </Border.GestureRecognizers>
-                                                        <Grid InputTransparent="True">
-                                                            <!-- Generated Thumbnail -->
-                                                            <Image Source="{Binding Thumbnail}"
-                                                                   Aspect="AspectFill"
-                                                                   InputTransparent="True"/>
-
-                                                            <Border BackgroundColor="#2196F3"
-                                                                   StrokeShape="RoundRectangle 4"
-                                                                   Padding="8,4"
-                                                                   HorizontalOptions="Start"
-                                                                   VerticalOptions="Start"
-                                                                   Margin="10"
-                                                                   InputTransparent="True">
-                                                                <Label Text="{Binding Index}"
-                                                                       TextColor="White"
-                                                                       FontSize="14"
-                                                                       FontAttributes="Bold"
-                                                                       InputTransparent="True"/>
-                                                            </Border>
-                                                            
-                                                            <Label Text="▶"
-                                                                   FontSize="50"
-                                                                   TextColor="White"
-                                                                   HorizontalOptions="Center"
-                                                                   VerticalOptions="Center"
-                                                                   Opacity="0.7"
-                                                                   InputTransparent="True"/>
-                                                        </Grid>
-                                                    </Border>
+                                                <VerticalStackLayout Spacing="0">
+                                                    <!-- Video Preview Card (Edge to Edge) -->
+                                                    <controls:MediaPreviewCard FilePath="{Binding FilePath}"
+                                                                                 FileName="{Binding FileName}"
+                                                                                 HeightRequest="200"
+                                                                                 Margin="0"/>
                                                     
-                                                    <!-- Filename -->
-                                                    <Label Text="{Binding FileName}"
-                                                           FontSize="12"
-                                                           TextColor="#007bff"
-                                                           TextDecorations="Underline"
-                                                           HorizontalOptions="Center"
-                                                           LineBreakMode="TailTruncation"
-                                                           MaxLines="1">
-                                                        <Label.GestureRecognizers>
-                                                            <TapGestureRecognizer Tapped="OnFileNameClicked" CommandParameter="{Binding .}"/>
-                                                        </Label.GestureRecognizers>
-                                                    </Label>
-                                                    
-                                                    <!-- Editable Slot -->
-                                                    <HorizontalStackLayout Spacing="5" HorizontalOptions="Center">
-                                                        <Label Text="Slot:" FontSize="12" TextColor="#666" VerticalOptions="Center" InputTransparent="True"/>
-                                                    <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="5,0" VerticalOptions="Center" Margin="1">
-                                                        <controls:BorderlessEntry Text="{Binding SlotLetter, Mode=TwoWay}"
+                                                    <!-- Details Container with Padding -->
+                                                    <VerticalStackLayout Spacing="8" Padding="10">
+                                                        <!-- Filename -->
+                                                        <Label Text="{Binding FileName}"
                                                                FontSize="12"
-                                                               WidthRequest="40"
-                                                               MaxLength="1"
-                                                               HorizontalTextAlignment="Center"
-                                                               BackgroundColor="Transparent"
-                                                               TextChanged="OnSlotLetterTextChanged"/>
-                                                    </Border>
-                                                    </HorizontalStackLayout>
-                                                    
-                                                    <!-- Delete Button -->
-                                                    <Border BackgroundColor="#ff5722"
-                                                           StrokeShape="RoundRectangle 4"
-                                                           Padding="8,4"
-                                                           HorizontalOptions="Center">
-                                                        <Border.GestureRecognizers>
-                                                            <TapGestureRecognizer Tapped="OnDeleteFinalizedPlaylistFileClicked" CommandParameter="{Binding .}"/>
-                                                        </Border.GestureRecognizers>
-                                                        <Label Text="🗑"
-                                                               TextColor="White"
-                                                               FontSize="14"
+                                                               TextColor="#007bff"
+                                                               TextDecorations="Underline"
                                                                HorizontalOptions="Center"
-                                                               InputTransparent="True"/>
-                                                    </Border>
+                                                               LineBreakMode="TailTruncation"
+                                                               MaxLines="1">
+                                                            <Label.GestureRecognizers>
+                                                                <TapGestureRecognizer Tapped="OnFileNameClicked" CommandParameter="{Binding .}"/>
+                                                            </Label.GestureRecognizers>
+                                                        </Label>
+                                                        
+                                                        <!-- Editable Slot -->
+                                                        <HorizontalStackLayout Spacing="5" HorizontalOptions="Center">
+                                                            <Label Text="Slot:" FontSize="12" TextColor="#666" VerticalOptions="Center" InputTransparent="True"/>
+                                                        <Border Stroke="#cccccc" StrokeThickness="1" StrokeShape="RoundRectangle 4" BackgroundColor="White" Padding="5,0" VerticalOptions="Center" Margin="1">
+                                                            <controls:BorderlessEntry Text="{Binding SlotLetter, Mode=TwoWay}"
+                                                                   FontSize="12"
+                                                                   WidthRequest="40"
+                                                                   MaxLength="1"
+                                                                   HorizontalTextAlignment="Center"
+                                                                   BackgroundColor="Transparent"
+                                                                   TextChanged="OnSlotLetterTextChanged"/>
+                                                        </Border>
+                                                        </HorizontalStackLayout>
+                                                        
+                                                        <!-- Delete Button -->
+                                                        <Border BackgroundColor="#ff5722"
+                                                               StrokeShape="RoundRectangle 4"
+                                                               Padding="8,4"
+                                                               HorizontalOptions="Center"
+                                                               Margin="0,5,0,0">
+                                                            <Border.GestureRecognizers>
+                                                                <TapGestureRecognizer Tapped="OnDeleteFinalizedPlaylistFileClicked" CommandParameter="{Binding .}"/>
+                                                            </Border.GestureRecognizers>
+                                                            <Label Text="🗑"
+                                                                   TextColor="White"
+                                                                   FontSize="14"
+                                                                   HorizontalOptions="Center"
+                                                                   InputTransparent="True"/>
+                                                        </Border>
+                                                    </VerticalStackLayout>
                                                 </VerticalStackLayout>
                                             </Grid>
                                         </Border>
