@@ -1,0 +1,20 @@
+Carrot Download
+Copyright (c) 2024 Eazisols
+
+This software uses the following third-party libraries:
+
+1. FFmpeg
+   - Description: A clear, universal solution for recording, converting and streaming audio and video.
+   - License: LGPL v2.1 (GNU Lesser General Public License)
+   - Source Code: The source code for FFmpeg can be downloaded from https://ffmpeg.org/download.html
+   - This software uses FFmpeg binaries which are dynamically linked. We do not own or claim copyright over FFmpeg.
+   - A copy of the LGPL v2.1 license is included in this directory as 'LGPL-v2.1.txt'.
+
+2. BCrypt.Net-Next
+   - License: MIT License
+
+3. CommunityToolkit.Maui
+   - License: MIT License
+
+4. Microsoft.Maui
+   - License: MIT License

@@ -62,7 +62,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Application Files
 ; IMPORTANT: Run the Windows publish step before compiling this installer script:
 ;   dotnet publish .\CarrotDownload.Maui\CarrotDownload.Maui.csproj -c Release -f net8.0-windows10.0.19041.0 -r win-x64
-Source: "CarrotDownload.Maui\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "CarrotDownload.Maui\bin\Release\net8.0-windows10.0.19041.0\win10-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; EditFarmer Icon - High quality, no compression
 Source: "InstallerAssets\carrot_square.ico"; DestDir: "{app}"; DestName: "carrot-icon.ico"; Flags: ignoreversion
 ; Bundle .NET 8 **Windows Desktop Runtime** installer (NOT SDK!)
