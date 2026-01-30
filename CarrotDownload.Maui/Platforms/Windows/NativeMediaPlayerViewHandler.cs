@@ -59,6 +59,15 @@ public class NativeMediaPlayerViewHandler : ViewHandler<NativeMediaPlayerView, M
 
 		try
 		{
+			if (mediaPlayer != null)
+			{
+				try
+				{
+					mediaPlayer.Pause();
+				}
+				catch { }
+			}
+			
 			platformView.SetMediaPlayer(null);
 		}
 		catch
@@ -66,7 +75,12 @@ public class NativeMediaPlayerViewHandler : ViewHandler<NativeMediaPlayerView, M
 			// ignore
 		}
 
-		mediaPlayer?.Dispose();
+		try
+		{
+			mediaPlayer?.Dispose();
+		}
+		catch { }
+		
 		mediaPlayer = null;
 
 		base.DisconnectHandler(platformView);
@@ -134,6 +148,7 @@ public class NativeMediaPlayerViewHandler : ViewHandler<NativeMediaPlayerView, M
 				try
 				{
 					mediaPlayer.PlaybackSession.PlaybackStateChanged -= OnPlaybackStateChanged;
+					try { mediaPlayer.Pause(); } catch { }
 					PlatformView.SetMediaPlayer(null);
 					mediaPlayer.Dispose();
 				}

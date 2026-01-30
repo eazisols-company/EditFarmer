@@ -74,6 +74,31 @@
                            Clicked="OnOpenInPlayerClicked"/>
                 </VerticalStackLayout>
             </Grid>
+
+            <!-- Text/Code Preview -->
+            <Grid x:Name="TextPreviewContainer"
+                  IsVisible="False"
+                  BackgroundColor="#1e1e1e">
+                <ScrollView Padding="10">
+                    <Label x:Name="TextPreviewLabel"
+                           TextColor="#d4d4d4"
+                           FontSize="10"
+                           FontFamily="Consolas"
+                           LineBreakMode="WordWrap"/>
+                </ScrollView>
+                <Border BackgroundColor="#007acc"
+                         StrokeShape="RoundRectangle 4"
+                         Padding="6,2"
+                         HorizontalOptions="End"
+                         VerticalOptions="Start"
+                         Margin="8"
+                         Opacity="0.8">
+                     <Label x:Name="FileTypeLabel"
+                            TextColor="White"
+                            FontSize="10"
+                            FontAttributes="Bold"/>
+                 </Border>
+            </Grid>
         </Grid>
     </Border>
 </ContentView>

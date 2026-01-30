@@ -127,7 +127,8 @@
                             </Border>
                             
                             <!-- Drag and Drop Zone -->
-                            <Border Stroke="#d0d0d0"
+                            <Border x:Name="ProjectDropBorder"
+                                    Stroke="#d0d0d0"
                                     StrokeThickness="2"
                                     StrokeDashArray="5,5"
                                     StrokeShape="RoundRectangle 8"
@@ -137,13 +138,13 @@
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnPickFileClicked"/>
                                 <DropGestureRecognizer AllowDrop="True" 
-                                                       DragOver="OnDragOver" 
-                                                       DragLeave="OnDragLeave" 
-                                                       Drop="OnFilesDropped"/>
+                                                       DragOver="OnProjectDragOver" 
+                                                       DragLeave="OnProjectDragLeave" 
+                                                       Drop="OnProjectDrop"/>
                             </Border.GestureRecognizers>
                                 <VerticalStackLayout Spacing="10" HorizontalOptions="Center" InputTransparent="True">
                                     <Label Text="📁" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>
-                                    <Label Text="Drag and drop some files here, or click to select files"
+                                    <Label Text="Drop files here or click to upload"
                                            FontSize="14"
                                            TextColor="#666"
                                            HorizontalOptions="Center"
@@ -292,7 +293,8 @@
                             </HorizontalStackLayout>
                             
                             <!-- Drag and Drop Zone -->
-                            <Border Stroke="#d0d0d0"
+                            <Border x:Name="PlaylistDropBorder"
+                                    Stroke="#d0d0d0"
                                     StrokeThickness="2"
                                     StrokeDashArray="5,5"
                                     StrokeShape="RoundRectangle 8"
@@ -302,9 +304,9 @@
                                 <Border.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnPickFileClicked"/>
                                     <DropGestureRecognizer AllowDrop="True" 
-                                                           DragOver="OnDragOver" 
-                                                           DragLeave="OnDragLeave" 
-                                                           Drop="OnFilesDropped"/>
+                                                           DragOver="OnPlaylistDragOver" 
+                                                           DragLeave="OnPlaylistDragLeave" 
+                                                           Drop="OnPlaylistDrop"/>
                                 </Border.GestureRecognizers>
                                 <VerticalStackLayout Spacing="10" HorizontalOptions="Center" InputTransparent="True">
                                     <Label Text="🎵" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>

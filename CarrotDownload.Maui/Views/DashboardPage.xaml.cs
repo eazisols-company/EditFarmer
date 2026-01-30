@@ -150,7 +150,7 @@ public partial class DashboardPage : ContentPage
 
 		var fileLabel = new Label
 		{
-			Text = "Drag and drop some files here, or click to select files",
+			Text = "Drop files here or click to upload",
 			FontSize = 13,
 			TextColor = Color.FromArgb("#666"),
 			VerticalOptions = LayoutOptions.Center
@@ -170,22 +170,74 @@ public partial class DashboardPage : ContentPage
 
 		fileDropBorder.Content = fileStack;
 
-		// Thumbnail Preview
-		var thumbnailPreview = new Image
+		// Thumbnail Preview Container
+		var previewContainer = new Grid
 		{
 			HeightRequest = 90,
 			WidthRequest = 160,
-			Aspect = Aspect.AspectFill,
 			IsVisible = false,
 			HorizontalOptions = LayoutOptions.Center,
 			Margin = new Thickness(0, 5)
 		};
+
+		var thumbnailPreview = new Image
+		{
+			Aspect = Aspect.AspectFill,
+			HorizontalOptions = LayoutOptions.Fill,
+			VerticalOptions = LayoutOptions.Fill
+		};
+		
+		// Remove Button
+		var removeButton = new Border
+		{
+			BackgroundColor = Color.FromArgb("#ff5722"),
+			WidthRequest = 24,
+			HeightRequest = 24,
+			StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
+			HorizontalOptions = LayoutOptions.End,
+			VerticalOptions = LayoutOptions.Start,
+			TranslationX = 8,
+			TranslationY = -8,
+			ZIndex = 1,
+			Content = new Label 
+			{ 
+				Text = "✕", 
+				TextColor = Colors.White, 
+				FontSize = 12, 
+				HorizontalOptions = LayoutOptions.Center, 
+				VerticalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0,0,0,2)
+			}
+		};
+
+		var removeGesture = new TapGestureRecognizer();
+		removeGesture.Tapped += (s, e) => 
+		{
+			// Clear file selection
+			selectedFilePath = null;
+			pair.FilePath = null;
+			fileLabel.Text = "Drop files here or click to upload";
+			fileLabel.TextColor = Color.FromArgb("#666");
+			previewContainer.IsVisible = false;
+		};
+		removeButton.GestureRecognizers.Add(removeGesture);
+
+		previewContainer.Children.Add(thumbnailPreview);
+		previewContainer.Children.Add(removeButton);
 
 		// Drag and Drop Gesture
 		var dropGesture = new DropGestureRecognizer { AllowDrop = true };
 		dropGesture.DragOver += (s, e) =>
 		{
 			e.AcceptedOperation = DataPackageOperation.Copy;
+#if WINDOWS
+            if (e.PlatformArgs?.DragEventArgs != null)
+            {
+                e.PlatformArgs.DragEventArgs.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+                e.PlatformArgs.DragEventArgs.DragUIOverride.IsCaptionVisible = true;
+                e.PlatformArgs.DragEventArgs.DragUIOverride.Caption = "Drop to upload file";
+            }
+#endif
 			fileDropBorder.Stroke = Color.FromArgb("#2196F3");
 			fileDropBorder.BackgroundColor = Color.FromArgb("#e3f2fd");
 		};
@@ -203,12 +255,8 @@ public partial class DashboardPage : ContentPage
 
 			try
 			{
-				string firstPath = null;
-				if (e.Data.Properties.ContainsKey("FileNames"))
-				{
-					var filenames = e.Data.Properties["FileNames"] as IEnumerable<string>;
-					firstPath = filenames?.FirstOrDefault();
-				}
+				var paths = await GetPathsFromDrop(e);
+				string firstPath = paths?.FirstOrDefault();
 
 				if (!string.IsNullOrEmpty(firstPath))
 				{
@@ -221,8 +269,15 @@ public partial class DashboardPage : ContentPage
 					if (thumb != null)
 					{
 						thumbnailPreview.Source = thumb;
-						thumbnailPreview.IsVisible = true;
+						previewContainer.IsVisible = true;
 					}
+                    else
+                    {
+                        // Show placeholder for non-thumbnail files
+						previewContainer.IsVisible = false; // Hide preview if no thumb, or show generic icon? 
+                        // For now, let's just keep the text indication. 
+                        // If we want a generic file icon we can add it later.
+                    }
 				}
 			}
 			catch (Exception ex)
@@ -261,8 +316,12 @@ public partial class DashboardPage : ContentPage
 					if (thumb != null)
 					{
 						thumbnailPreview.Source = thumb;
-						thumbnailPreview.IsVisible = true;
+						previewContainer.IsVisible = true;
 					}
+                    else
+                    {
+                        previewContainer.IsVisible = false;
+                    }
 				}
 			}
 			catch (Exception ex)
@@ -273,7 +332,7 @@ public partial class DashboardPage : ContentPage
 		fileDropBorder.GestureRecognizers.Add(tapGesture);
 
 		pairContainer.Children.Add(fileDropBorder); 
-		pairContainer.Children.Add(thumbnailPreview); 
+		pairContainer.Children.Add(previewContainer); 
 
 		// Separator
 		pairContainer.Children.Add(new BoxView
@@ -576,38 +635,72 @@ public partial class DashboardPage : ContentPage
 		}
 	}
 
-	private void OnDragOver(object sender, DragEventArgs e)
+	// --- Project Drag Events ---
+	private void OnProjectDragOver(object sender, DragEventArgs e)
 	{
 		e.AcceptedOperation = DataPackageOperation.Copy;
-		if (sender is Border border)
-		{
-			border.Stroke = Color.FromArgb("#2196F3");
-			border.BackgroundColor = Color.FromArgb("#e3f2fd");
-		}
+
+#if WINDOWS
+        if (e.PlatformArgs?.DragEventArgs != null)
+        {
+            e.PlatformArgs.DragEventArgs.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            e.PlatformArgs.DragEventArgs.DragUIOverride.IsCaptionVisible = true;
+            e.PlatformArgs.DragEventArgs.DragUIOverride.Caption = "Drop to upload files";
+        }
+#endif
+
+		ProjectDropBorder.Stroke = Color.FromArgb("#2196F3");
+		ProjectDropBorder.BackgroundColor = Color.FromArgb("#e3f2fd");
 	}
 
-	private void OnDragLeave(object sender, DragEventArgs e)
+	private void OnProjectDragLeave(object sender, DragEventArgs e)
 	{
-		if (sender is Border border)
-		{
-			border.Stroke = Color.FromArgb("#d0d0d0");
-			border.BackgroundColor = Color.FromArgb("#fafafa");
-		}
+		ProjectDropBorder.Stroke = Color.FromArgb("#d0d0d0");
+		ProjectDropBorder.BackgroundColor = Color.FromArgb("#fafafa");
 	}
 
-	private async void OnFilesDropped(object sender, DropEventArgs e)
+	private async void OnProjectDrop(object sender, DropEventArgs e)
 	{
-		OnDragLeave(sender, null!);
+		OnProjectDragLeave(sender, null!);
+		await ProcessDroppedFiles(e);
+	}
 
+	// --- Playlist Drag Events ---
+	private void OnPlaylistDragOver(object sender, DragEventArgs e)
+	{
+		e.AcceptedOperation = DataPackageOperation.Copy;
+
+#if WINDOWS
+        if (e.PlatformArgs?.DragEventArgs != null)
+        {
+            e.PlatformArgs.DragEventArgs.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            e.PlatformArgs.DragEventArgs.DragUIOverride.IsCaptionVisible = true;
+            e.PlatformArgs.DragEventArgs.DragUIOverride.Caption = "Drop to upload files";
+        }
+#endif
+
+		PlaylistDropBorder.Stroke = Color.FromArgb("#2196F3");
+		PlaylistDropBorder.BackgroundColor = Color.FromArgb("#e3f2fd");
+	}
+
+	private void OnPlaylistDragLeave(object sender, DragEventArgs e)
+	{
+		PlaylistDropBorder.Stroke = Color.FromArgb("#d0d0d0");
+		PlaylistDropBorder.BackgroundColor = Color.FromArgb("#fafafa");
+	}
+
+	private async void OnPlaylistDrop(object sender, DropEventArgs e)
+	{
+		OnPlaylistDragLeave(sender, null!);
+		await ProcessDroppedFiles(e);
+	}
+
+	// --- Shared Logic ---
+	private async Task ProcessDroppedFiles(DropEventArgs e)
+	{
 		try
 		{
-			var paths = new List<string>();
-			if (e.Data.Properties.ContainsKey("FileNames"))
-			{
-				var fileNames = e.Data.Properties["FileNames"] as IEnumerable<string>;
-				if (fileNames != null)
-					paths.AddRange(fileNames);
-			}
+			var paths = await GetPathsFromDrop(e);
 
 			if (!paths.Any())
 				return;
@@ -645,11 +738,59 @@ public partial class DashboardPage : ContentPage
 		}
 	}
 
+	private async Task<IEnumerable<string>> GetPathsFromDrop(DropEventArgs e)
+	{
+		var paths = new List<string>();
+
+#if WINDOWS
+		try 
+		{
+            if (e.PlatformArgs?.DragEventArgs?.DataView != null)
+            {
+                var dataView = e.PlatformArgs.DragEventArgs.DataView;
+                if (dataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+                {
+                    var items = await dataView.GetStorageItemsAsync();
+                    foreach (var item in items)
+                    {
+                        if (!string.IsNullOrEmpty(item.Path))
+                        {
+                            paths.Add(item.Path);
+                        }
+                    }
+                }
+            }
+			
+            // Fallback to MAUI properties if platform args didn't provide paths
+            if (!paths.Any() && e.Data.Properties.ContainsKey("FileNames"))
+			{
+				var fileNames = e.Data.Properties["FileNames"] as IEnumerable<string>;
+				if (fileNames != null) paths.AddRange(fileNames);
+			}
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"Error getting paths from drop: {ex}");
+		}
+#else
+        if (e.Data.Properties.ContainsKey("FileNames"))
+        {
+            var fileNames = e.Data.Properties["FileNames"] as IEnumerable<string>;
+            if (fileNames != null) paths.AddRange(fileNames);
+        }
+#endif
+		return paths;
+	}
+
 	// Remove file from upload queue
-	private void OnRemoveFileClicked(object sender, TappedEventArgs e)
+	private async void OnRemoveFileClicked(object sender, TappedEventArgs e)
 	{
 		if (e.Parameter is SelectedFileModel file)
 		{
+			// Kill playback
+			file.FilePath = null;
+			await Task.Delay(50);
+			
 			SelectedFiles.Remove(file);
 			
 			// Re-index remaining files
@@ -1071,7 +1212,14 @@ public class SelectedFileModel : System.ComponentModel.INotifyPropertyChanged
 
 	public int Index { get; set; }
 	public string FileName { get; set; }
-	public string FilePath { get; set; }
+
+	private string _filePath;
+	public string FilePath 
+	{ 
+		get => _filePath;
+		set { _filePath = value; OnPropertyChanged(nameof(FilePath)); }
+	}
+
 	public string FileSize { get; set; }
 
 	public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;

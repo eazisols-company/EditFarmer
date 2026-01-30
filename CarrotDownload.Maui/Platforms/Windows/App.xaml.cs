@@ -19,6 +19,9 @@ public partial class App : MauiWinUIApplication
 		this.InitializeComponent();
 		// Keep mutex alive for Inno Setup detection
 		_mutex = new System.Threading.Mutex(true, "EditFarmer_Mutex_A1B2C3D4");
+		
+		// Initialize hand cursor for all buttons
+		CarrotDownload.Maui.Platforms.Windows.ButtonCursorHandler.Initialize();
 	}
 
 	private static System.Threading.Mutex _mutex;

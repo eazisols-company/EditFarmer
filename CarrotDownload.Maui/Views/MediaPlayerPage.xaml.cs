@@ -64,6 +64,24 @@ public partial class MediaPlayerPage : ContentPage
 		}
 	}
 
+	protected override void OnDisappearing()
+	{
+		base.OnDisappearing();
+#if WINDOWS
+		try
+		{
+			if (NativePlayer != null)
+			{
+				NativePlayer.FilePath = null;
+			}
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[MediaPlayerPage] Error stopping playback: {ex.Message}");
+		}
+#endif
+	}
+
 	private void ShowError(string message)
 	{
 		ErrorMessageLabel.Text = message;

@@ -47,7 +47,8 @@
                                TextColor="#333"/>
 
                         <!-- Drag and Drop Zone -->
-                        <Border Stroke="#d0d0d0"
+                        <Border x:Name="ProjectDropBorder"
+                                Stroke="#d0d0d0"
                                 StrokeThickness="2"
                                 StrokeDashArray="5,5"
                                 StrokeShape="RoundRectangle 8"
@@ -56,13 +57,13 @@
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnPickFileClicked"/>
                                 <DropGestureRecognizer AllowDrop="True" 
-                                                       DragOver="OnDragOver" 
-                                                       DragLeave="OnDragLeave" 
-                                                       Drop="OnFilesDropped"/>
+                                                       DragOver="OnProjectDragOver" 
+                                                       DragLeave="OnProjectDragLeave" 
+                                                       Drop="OnProjectDrop"/>
                             </Border.GestureRecognizers>
                             <VerticalStackLayout Spacing="10" HorizontalOptions="Center" InputTransparent="True">
                                 <Label Text="📁" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>
-                                <Label Text="Drag and drop files here, or click to select files"
+                                <Label Text="Drop files here or click to upload"
                                        FontSize="14"
                                        TextColor="#666"
                                        HorizontalOptions="Center"
@@ -160,71 +161,78 @@
                            TextColor="#333"/>
 
                     <!-- Files Grid -->
-                    <CollectionView x:Name="FilesCollectionView"
-                                  ItemsSource="{Binding ProjectFiles}">
-                        <CollectionView.ItemsLayout>
-                            <GridItemsLayout Orientation="Vertical" 
-                                           Span="3"
-                                           HorizontalItemSpacing="10"
-                                           VerticalItemSpacing="10"/>
-                        </CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Border x:Name="FileItemBorder"
-                                       BackgroundColor="White"
-                                       StrokeShape="RoundRectangle 6"
-                                       Stroke="#e0e0e0"
-                                       StrokeThickness="1"
-                                       Padding="4">
-                                    <Border.Triggers>
-                                        <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="Stroke" Value="#28a745" />
-                                            <Setter Property="Shadow">
-                                                <Setter.Value>
-                                                    <Shadow Brush="#28a745" Radius="8" Opacity="0.5"/>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </DataTrigger>
-                                    </Border.Triggers>
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnFileDoubleClicked" CommandParameter="{Binding .}"/>
-                                    </Border.GestureRecognizers>
-                                    <VerticalStackLayout Spacing="4">
-                                        <controls:MediaPreviewCard FilePath="{Binding FilePath}"
-                                                                     FileName="{Binding FileName}"
-                                                                     WidthRequest="320"
-                                                                     HeightRequest="180">
-                                            <controls:MediaPreviewCard.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnPlayVideoClicked" CommandParameter="{Binding FilePath}"/>
-                                            </controls:MediaPreviewCard.GestureRecognizers>
-                                        </controls:MediaPreviewCard>
-                                        
-                                        <!-- Filename -->
-                                        <Label Text="{Binding FileName}"
-                                               FontSize="10"
-                                               TextColor="#333"
-                                               HorizontalOptions="Center"
-                                               LineBreakMode="TailTruncation"
-                                               MaxLines="1"/>
-                                        
-                                        <!-- Delete Button (Smaller) -->
-                                        <Border BackgroundColor="#ff5722"
-                                               StrokeShape="RoundRectangle 3"
-                                               Padding="5,2"
-                                               HorizontalOptions="Center">
-                                            <Border.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnDeleteFileClicked" CommandParameter="{Binding .}"/>
-                                            </Border.GestureRecognizers>
-                                            <Label Text="🗑"
-                                                   TextColor="White"
-                                                   FontSize="10"
-                                                   HorizontalOptions="Center"/>
-                                        </Border>
-                                    </VerticalStackLayout>
-                                </Border>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
+                    <Border BackgroundColor="#f9f9f9"
+                            StrokeShape="RoundRectangle 8"
+                            Stroke="#d0d0d0"
+                            StrokeThickness="2"
+                            Padding="15"
+                            MinimumHeightRequest="200">
+                        <CollectionView x:Name="FilesCollectionView"
+                                      ItemsSource="{Binding ProjectFiles}">
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Vertical" 
+                                               Span="3"
+                                               HorizontalItemSpacing="10"
+                                               VerticalItemSpacing="10"/>
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border x:Name="FileItemBorder"
+                                           BackgroundColor="White"
+                                           StrokeShape="RoundRectangle 6"
+                                           Stroke="#e0e0e0"
+                                           StrokeThickness="1"
+                                           WidthRequest="360"
+                                           HorizontalOptions="Center"
+                                           Padding="0">
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Stroke" Value="#28a745" />
+                                                <Setter Property="Shadow">
+                                                    <Setter.Value>
+                                                        <Shadow Brush="#28a745" Radius="8" Opacity="0.5"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Tapped="OnFileCardTapped" CommandParameter="{Binding .}"/>
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="0">
+                                            <controls:MediaPreviewCard FilePath="{Binding FilePath}"
+                                                                         FileName="{Binding FileName}"
+                                                                         HeightRequest="200"
+                                                                         Margin="0"/>
+                                            
+                                            <VerticalStackLayout Spacing="8" Padding="10">
+                                                <!-- Filename -->
+                                                <Label Text="{Binding FileName}"
+                                                       FontSize="12"
+                                                       TextColor="#333"
+                                                       HorizontalOptions="Center"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="1"/>
+                                                
+                                                <!-- Delete Button -->
+                                                <Border BackgroundColor="#ff5722"
+                                                       StrokeShape="RoundRectangle 4"
+                                                       Padding="8,4"
+                                                       HorizontalOptions="Center">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnDeleteFileClicked" CommandParameter="{Binding .}"/>
+                                                    </Border.GestureRecognizers>
+                                                    <Label Text="🗑"
+                                                           TextColor="White"
+                                                           FontSize="14"
+                                                           HorizontalOptions="Center"/>
+                                                </Border>
+                                            </VerticalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Border>
                     
                     <!-- Add to Playlist Button (Shows when files selected) -->
                     <Button x:Name="AddToPlaylistButton"
@@ -308,6 +316,8 @@
                                                     <Border.GestureRecognizers>
                                                         <TapGestureRecognizer Tapped="OnChoosePendingFileClicked"/>
                                                         <DropGestureRecognizer AllowDrop="True"
+                                                                               DragOver="OnPlaylistSequenceDragOver"
+                                                                               DragLeave="OnPlaylistSequenceDragLeave"
                                                                                Drop="OnPendingFileDropped"/>
                                                     </Border.GestureRecognizers>
                                                     <VerticalStackLayout Spacing="4">
@@ -392,15 +402,14 @@
                             StrokeShape="RoundRectangle 8"
                             Stroke="#d0d0d0"
                             StrokeThickness="2"
-                            Padding="15"
+                            Padding="0"
                             MinimumHeightRequest="200">
-                        <ScrollView>
-                            <FlexLayout x:Name="PlaylistFilesFlexLayout"
-                                       BindableLayout.ItemsSource="{Binding FinalizedPlaylistFiles}"
-                                       Wrap="Wrap"
-                                       JustifyContent="Start"
-                                       AlignItems="Start"
-                                       Direction="Row">
+                        <ScrollView Orientation="Horizontal" 
+                                    HorizontalScrollBarVisibility="Always"
+                                    HeightRequest="360">
+                            <HorizontalStackLayout BindableLayout.ItemsSource="{Binding FinalizedPlaylistFiles}"
+                                                 Spacing="15"
+                                                 Padding="15">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate>
                                         <Border BackgroundColor="White"
@@ -408,8 +417,8 @@
                                                Stroke="#e0e0e0"
                                                StrokeThickness="1"
                                                Padding="0"
-                                               Margin="7.5"
                                                WidthRequest="360"
+                                               HorizontalOptions="Center"
                                                ZIndex="1">
                                             <Border.Triggers>
                                                 <DataTrigger TargetType="Border" Binding="{Binding IsSwapSelected}" Value="True">
@@ -484,7 +493,7 @@
                                         </Border>
                                     </DataTemplate>
                                 </BindableLayout.ItemTemplate>
-                            </FlexLayout>
+                            </HorizontalStackLayout>
                         </ScrollView>
                     </Border>
 

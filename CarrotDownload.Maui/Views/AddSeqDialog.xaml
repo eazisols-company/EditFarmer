@@ -55,7 +55,7 @@
                         </Border.GestureRecognizers>
                         <VerticalStackLayout Spacing="8" HorizontalOptions="Center" InputTransparent="True">
                             <Label Text="📁" FontSize="32" HorizontalOptions="Center" InputTransparent="True"/>
-                            <Label Text="Drag and drop a file here, or click to select"
+                            <Label Text="Drop file here or click to upload"
                                    FontSize="14"
                                    TextColor="#666"
                                    HorizontalOptions="Center"

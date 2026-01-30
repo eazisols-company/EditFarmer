@@ -16,6 +16,12 @@ public partial class ProjectDetailPage : ContentPage
 	{
 		".mp3", ".wav", ".mp4", ".mkv", ".avi", ".mov", ".flac", ".aac"
 	};
+    
+    // Extensions for code/text files
+    private static readonly HashSet<string> _allowedCodeExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cs", ".xml", ".xaml", ".json", ".c", ".cpp", ".h", ".py", ".js", ".ts", ".html", ".css", ".java", ".txt", ".md", ".sql", ".sh", ".bat", ".ps1"
+    };
 	private string _projectId;
 	private string _projectTitle;
 
@@ -177,9 +183,9 @@ public partial class ProjectDetailPage : ContentPage
 				PickerTitle = "Select Audio or Video Files",
 				FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
 				{
-					{ DevicePlatform.iOS, new[] { "public.audio", "public.movie" } },
-					{ DevicePlatform.Android, new[] { "audio/*", "video/*" } },
-					{ DevicePlatform.WinUI, new[] { ".mp3", ".wav", ".mp4", ".mkv", ".avi", ".mov", ".flac", ".aac" } }
+					{ DevicePlatform.iOS, new[] { "public.audio", "public.movie", "public.text", "public.source-code" } },
+					{ DevicePlatform.Android, new[] { "audio/*", "video/*", "text/*", "application/*" } },
+					{ DevicePlatform.WinUI, _allowedExtensions.Concat(_allowedCodeExtensions).ToArray() }
 				})
 			};
 
@@ -256,7 +262,8 @@ public partial class ProjectDetailPage : ContentPage
 		}
 	}
 
-	private void OnDragOver(object sender, DragEventArgs e)
+	// --- Project Drag Events ---
+	private void OnProjectDragOver(object sender, DragEventArgs e)
 	{
 		e.AcceptedOperation = DataPackageOperation.Copy;
 
@@ -269,30 +276,23 @@ public partial class ProjectDetailPage : ContentPage
         }
 #endif
 
-		if (sender is Border border)
-		{
-			border.Stroke = Color.FromArgb("#2196F3");
-			border.BackgroundColor = Color.FromArgb("#e3f2fd");
-		}
+		ProjectDropBorder.Stroke = Color.FromArgb("#2196F3");
+		ProjectDropBorder.BackgroundColor = Color.FromArgb("#e3f2fd");
 	}
 
-	private void OnDragLeave(object sender, DragEventArgs e)
+	private void OnProjectDragLeave(object sender, DragEventArgs e)
 	{
-		if (sender is Border border)
-		{
-			border.Stroke = Color.FromArgb("#d0d0d0");
-			border.BackgroundColor = Color.FromArgb("#fafafa");
-		}
+		ProjectDropBorder.Stroke = Color.FromArgb("#d0d0d0");
+		ProjectDropBorder.BackgroundColor = Color.FromArgb("#fafafa");
 	}
 
-	private async void OnFilesDropped(object sender, DropEventArgs e)
+	private async void OnProjectDrop(object sender, DropEventArgs e)
 	{
-		OnDragLeave(sender, null!);
+		OnProjectDragLeave(sender, null!);
 
 		try
 		{
 			// Handle file drops if supported by platform
-			// On Windows, the data package often contains file paths
 			var paths = await GetPathsFromDrop(e);
 			if (paths != null && paths.Any())
 			{
@@ -305,6 +305,36 @@ public partial class ProjectDetailPage : ContentPage
 		catch (Exception ex)
 		{
 			await NotificationService.ShowError("We couldn't add those files. Please try again.");
+		}
+	}
+
+	// --- Playlist Sequence Drag Events ---
+	private void OnPlaylistSequenceDragOver(object sender, DragEventArgs e)
+	{
+		e.AcceptedOperation = DataPackageOperation.Copy;
+
+#if WINDOWS
+        if (e.PlatformArgs?.DragEventArgs != null)
+        {
+            e.PlatformArgs.DragEventArgs.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            e.PlatformArgs.DragEventArgs.DragUIOverride.IsCaptionVisible = true;
+            e.PlatformArgs.DragEventArgs.DragUIOverride.Caption = "Drop to set file";
+        }
+#endif
+
+		if (sender is Border border)
+		{
+			border.Stroke = Color.FromArgb("#2196F3");
+			border.BackgroundColor = Color.FromArgb("#e3f2fd");
+		}
+	}
+
+	private void OnPlaylistSequenceDragLeave(object sender, DragEventArgs e)
+	{
+		if (sender is Border border)
+		{
+			border.Stroke = Color.FromArgb("#d0d0d0");
+			border.BackgroundColor = Colors.White;
 		}
 	}
 
@@ -352,12 +382,16 @@ public partial class ProjectDetailPage : ContentPage
 		return paths;
 	}
 	
-	private void OnRemoveTempFileClicked(object sender, TappedEventArgs e)
+	private async void OnRemoveTempFileClicked(object sender, TappedEventArgs e)
 	{
 		try
 		{
 			if (e.Parameter is ProjectFileModel file)
 			{
+				// Kill playback
+				file.FilePath = null;
+				await Task.Delay(50);
+				
 				TempFiles.Remove(file);
 				if (TempFiles.Count == 0)
 				{
@@ -444,6 +478,13 @@ public partial class ProjectDetailPage : ContentPage
 					await _mongoService.UpdateProjectFilesAsync(_projectId, updatedFiles);
 				}
 
+
+				
+				// Force stop playback by clearing bindings BEFORE removing
+				// This triggers OnFilePathChanged -> Pause -> Dispose immediately
+				file.FilePath = null;
+				await Task.Delay(50); // Give the binding a moment to propagate
+
 				// Reload files - MUST await to prevent race conditions
 				await LoadProjectFiles();
 
@@ -461,28 +502,7 @@ public partial class ProjectDetailPage : ContentPage
 		await Shell.Current.GoToAsync("..");
 	}
 
-	private async void OnPlayVideoClicked(object sender, TappedEventArgs e)
-	{
-		if (e.Parameter is string filePath)
-		{
-			try
-			{
-				if (File.Exists(filePath))
-				{
-					var encodedPath = Uri.EscapeDataString(filePath);
-					await Shell.Current.GoToAsync($"MediaPlayerPage?filePath={encodedPath}");
-				}
-				else
-				{
-					await NotificationService.ShowError("We couldn't find that file. It may have been moved or deleted.");
-				}
-			}
-			catch (Exception ex)
-			{
-				await NotificationService.ShowError("We couldn't play that file. Please make sure it exists.");
-			}
-		}
-	}
+
 	
 	// Navigate to file detail page when filename is clicked
 	private async void OnFileNameClicked(object sender, TappedEventArgs e)
@@ -524,7 +544,42 @@ public partial class ProjectDetailPage : ContentPage
 		}
 	}
 	
-	// File selection handler (double-click)
+	// Manual Tap Handling for File Card
+	private ProjectFileModel? _lastTappedItem;
+	private int _tapCount;
+	private DateTime _lastTapTime;
+
+	private void OnFileCardTapped(object sender, TappedEventArgs e)
+	{
+		if (e.Parameter is ProjectFileModel item)
+		{
+			var now = DateTime.Now;
+			if (_lastTappedItem == item && (now - _lastTapTime).TotalMilliseconds < 500)
+			{
+				_tapCount++;
+			}
+			else
+			{
+				_tapCount = 1;
+				_lastTappedItem = item;
+			}
+			_lastTapTime = now;
+
+			if (_tapCount == 2)
+			{
+				// Double Click Logic: Toggle Selection
+				OnFileDoubleClicked(sender, e);
+			}
+			else if (_tapCount == 3)
+			{
+				// Triple Click Logic: Delete
+				_tapCount = 0; // Reset
+				OnDeleteFileClicked(sender, e);
+			}
+		}
+	}
+
+	// File selection handler (double-click logic reused)
 	private void OnFileDoubleClicked(object sender, TappedEventArgs e)
 	{
 		if (e.Parameter is ProjectFileModel file)
@@ -871,6 +926,8 @@ public partial class ProjectDetailPage : ContentPage
 
 	private async void OnPendingFileDropped(object sender, DropEventArgs e)
 	{
+		OnPlaylistSequenceDragLeave(sender, null!);
+
 		try
 		{
 			if (sender is BindableObject bo && bo.BindingContext is ProjectFileModel file)
@@ -956,6 +1013,10 @@ public partial class ProjectDetailPage : ContentPage
 				// CRITICAL: Delete from database ONLY - NEVER delete user's original files from disk
 				// Files are stored at their original locations and must remain untouched
 				await _mongoService.DeletePlaylistByFilePathAsync(file.FilePath);
+
+				// Force stop playback
+				file.FilePath = null;
+				await Task.Delay(50);
 
 				// Remove from collection
 				FinalizedPlaylistFiles.Remove(file);

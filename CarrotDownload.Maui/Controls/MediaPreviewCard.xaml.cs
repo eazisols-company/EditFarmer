@@ -29,6 +29,11 @@ public partial class MediaPreviewCard : ContentView
 			default(string),
 			propertyChanged: OnFileSizeChanged);
 
+    private static readonly HashSet<string> _codeExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cs", ".xml", ".xaml", ".json", ".c", ".cpp", ".h", ".py", ".js", ".ts", ".html", ".css", ".java", ".txt", ".md", ".sql", ".sh", ".bat", ".ps1", ".ini", ".config", ".razor"
+    };
+
 	public string FilePath
 	{
 		get => (string)GetValue(FilePathProperty);
@@ -50,6 +55,27 @@ public partial class MediaPreviewCard : ContentView
 	public MediaPreviewCard()
 	{
 		InitializeComponent();
+		Unloaded += OnUnloaded;
+	}
+
+	private void OnUnloaded(object? sender, EventArgs e)
+	{
+		// Stop playback and clear player when control is unloaded
+		// This is critical for when items are removed from collections (delete action)
+		try
+		{
+			TextPreviewContainer.IsVisible = false;
+#if WINDOWS
+			if (PreviewPlayer != null)
+			{
+				PreviewPlayer.FilePath = null;
+			}
+#endif
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[MediaPreviewCard] Unloaded cleanup error: {ex.Message}");
+		}
 	}
 
 	static void OnFilePathChanged(BindableObject bindable, object oldValue, object newValue)
@@ -64,20 +90,61 @@ public partial class MediaPreviewCard : ContentView
 			// Use dispatcher to ensure UI is ready
 			card.Dispatcher.Dispatch(() =>
 			{
+                try
+                {
+                    bool isCode = false;
+                    if (File.Exists(path))
+                    {
+                         var ext = Path.GetExtension(path);
+                         isCode = _codeExtensions.Contains(ext);
+                    }
+
+                    if (isCode)
+                    {
+                        // Show text preview
+                        try 
+                        {
+                            var lines = File.ReadLines(path).Take(40);
+                            card.TextPreviewLabel.Text = string.Join(Environment.NewLine, lines);
+                            card.FileTypeLabel.Text = Path.GetExtension(path).TrimStart('.').ToUpper();
+                            card.TextPreviewContainer.IsVisible = true;
+                            
+                            // Hide players
+                            if (card.PreviewPlayer != null) card.PreviewPlayer.IsVisible = false;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MediaPreview] Error reading text: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        // Restore specific players visibility based on platform
+                        card.TextPreviewContainer.IsVisible = false;
 #if WINDOWS
-				try
-				{
-					// Additional null check before setting FilePath
-					if (card.PreviewPlayer != null && !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
-					{
-						card.PreviewPlayer.FilePath = path;
-					}
-				}
-				catch (Exception ex)
-				{
-					System.Diagnostics.Debug.WriteLine($"[MediaPreviewCard] Error setting FilePath: {ex.Message}");
-				}
+                        if (card.PreviewPlayer != null) card.PreviewPlayer.IsVisible = true;
 #endif
+
+#if WINDOWS
+				        try
+				        {
+					        // Additional null check before setting FilePath
+					        if (card.PreviewPlayer != null && !string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
+					        {
+						        card.PreviewPlayer.FilePath = path;
+					        }
+				        }
+				        catch (Exception ex)
+				        {
+					        System.Diagnostics.Debug.WriteLine($"[MediaPreviewCard] Error setting FilePath: {ex.Message}");
+				        }
+#endif
+                    }
+                }
+                catch (Exception ex)
+                {
+                     System.Diagnostics.Debug.WriteLine($"[MediaPreview] Error: {ex.Message}");
+                }
 			});
 		}
 		else
@@ -85,6 +152,7 @@ public partial class MediaPreviewCard : ContentView
 			// Clear the player if path is null/empty
 			card.Dispatcher.Dispatch(() =>
 			{
+                card.TextPreviewContainer.IsVisible = false;
 #if WINDOWS
 				try
 				{
